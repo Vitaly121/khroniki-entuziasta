@@ -6,7 +6,7 @@
 const C=window.SITE_BACKEND||{};
 if(window.claude&&typeof window.claude.use==="function")return;
 if(!C.supabaseUrl||!C.anonKey)return;
-const LIB=["vendor/supabase.js","https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"];
+const LIB=["vendor/supabase.js","https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"];
 const TAB=Math.random().toString(36).slice(2,10);
 let sbP=null;
 function lib(){return new Promise((res,rej)=>{let i=0;(function next(){if(window.supabase&&window.supabase.createClient)return res();if(i>=LIB.length)return rej(new Error("lib"));
@@ -45,7 +45,7 @@ const db={doc,collection};
 async function sample(input,opts){opts=opts||{};
   if(!C.workerUrl)throw new Error("nosample");const s=await session();if(!s){const e=new Error("login");e.code="login";throw e}
   const messages=typeof input==="string"?[{role:"user",content:input}]:input;
-  const r=await fetch(C.workerUrl.replace(/\/$/,"")+"/sample",{method:"POST",signal:opts.signal,headers:{"content-type":"application/json","authorization":"Bearer "+s.access_token},body:JSON.stringify({messages,tier:opts.modelTier==="quick"?"quick":"main"})});
+  const r=await fetch(C.workerUrl.replace(/\/$/,"")+"/sample",{method:"POST",signal:opts.signal,headers:{"content-type":"application/json","authorization":"Bearer "+s.access_token,"x-sb-key":C.anonKey},body:JSON.stringify({messages,tier:opts.modelTier==="quick"?"quick":"main"})});
   if(!r.ok){let m="";try{m=(await r.json()).error||""}catch(e){}const e=new Error(m||("http "+r.status));e.code=r.status===429?"limit":"failed";throw e}
   const rd=r.body.getReader(),dec=new TextDecoder();let buf="",text="";
   for(;;){const {done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;
