@@ -71,6 +71,15 @@ $$ begin new.owner := old.owner; new.path := old.path; new.updated_at := now(); 
 drop trigger if exists docs_keep_owner on public.docs;
 create trigger docs_keep_owner before update on public.docs for each row execute function public.docs_keep_owner();
 
+
+-- права для Data API (на случай, если новые таблицы не открываются автоматически)
+grant usage on schema public to anon, authenticated;
+grant select on public.docs, public.profiles to anon;
+grant select, insert, update, delete on public.docs to authenticated;
+grant select, insert, update on public.profiles to authenticated;
+grant select on public.admins to authenticated;
+revoke all on public.usage from anon, authenticated;
+
 -- живые обновления клуба и следов
 do $$ begin
   alter publication supabase_realtime add table public.docs;
