@@ -2,7 +2,7 @@
 window.Meaning=(function(){
 "use strict";
 const A=()=>window.__APP;
-const TYPES=[["e","Записи","#2a78d6"],["o","Предметы","#eb6834"],["c","Двойники и переписка","#1baf7a"],["m","Музыка","#e87ba4"],["p","Посты","#6250d6"]];
+const TYPES=[["e","Записи","#1A1A1A"],["o","Предметы","#A39E92"],["c","Двойники и переписка","#E03A1E"],["m","Музыка","#3D6B8C"],["p","Посты","#7B6A9C"]];
 const TC=Object.fromEntries(TYPES.map(t=>[t[0],t[2]]));
 let on=new Set(TYPES.map(t=>t[0])),focus=-1;
 function load(){return new Promise(res=>{if(window.MEANING)return res();const s=document.createElement("script");s.src="data-meaning.js";s.onload=res;s.onerror=res;document.head.appendChild(s)})}
@@ -12,7 +12,7 @@ function css(){if(document.getElementById("meaningCss"))return;const s=document.
 .mn-chip[aria-pressed=false]{opacity:.45}.mn-chip i{width:9px;height:9px;border-radius:50%;display:inline-block}
 .mn-chip:focus-visible{outline:2px solid var(--stamp)}
 .mn-wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
-.mn-box{position:relative;border:1px solid var(--line);background:var(--sheet);height:min(76vh,760px);border-radius:10px;overflow:hidden;touch-action:none}
+.mn-box{position:relative;border:1px solid var(--line);background:var(--sheet);height:min(80vh,780px);border-radius:2px;overflow:hidden;touch-action:none}
 .mn-box canvas{width:100%;height:100%;display:block;cursor:grab}
 .mn-tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);font-size:12.5px;padding:7px 9px;border-radius:6px;max-width:280px;line-height:1.35;z-index:3}
 .mn-tip small{display:block;opacity:.75;font-size:11px;margin-top:2px}
@@ -25,7 +25,7 @@ function css(){if(document.getElementById("meaningCss"))return;const s=document.
 async function show(){const app=A();app.clearView();app.setNav("meaning");css();
   app.view.innerHTML=`<p class="hint loading">Собираем карту смыслов…</p>`;await load();const D=window.MEANING;if(!D){app.view.innerHTML=`<p class="hint">Карта не загрузилась.</p>`;return}
   const esc=app.esc;
-  app.view.innerHTML=`<div class="page-head"><div class="eyebrow">Смыслы · ${(D.groups||[]).length} групп · ${D.themes.length} тем · ${D.nodes.length} точек</div><h2>Карта смыслов</h2><div class="sub">Пять групп и девятнадцать тем книги. Вокруг каждой темы — то, что к ней ближе всего по тексту: записи, вещи, двойники, музыка и посты вперемешку. Линии — темы, которые делят одни и те же записи и вещи. Нажмите на тему — откроется её описание, время и содержимое.</div></div>
+  app.view.innerHTML=`<div class="page-head"><div class="eyebrow">Смыслы · ${(D.groups||[]).length} групп · ${D.themes.length} тем · ${D.nodes.length} точек</div><h2>Карта смыслов</h2><div class="sub">Атлас: пять групп — секторы круга, девятнадцать тем — на внутреннем кольце. От каждой темы лучами расходится — то, что к ней ближе всего по тексту: записи, вещи, двойники, музыка и посты. Нити через центр — темы, которые делят одни и те же записи и вещи. Нажмите на тему — откроется её описание, время и содержимое.</div></div>
    <div class="mn-tools" role="group" aria-label="Что показывать">${TYPES.map(([k,t,c])=>`<button type="button" class="mn-chip" data-tp="${k}" aria-pressed="${on.has(k)}"><i style="background:${c}"></i>${t} · ${D.nodes.filter(n=>n.k===k).length}</button>`).join("")}<button type="button" class="mn-chip" id="mnReset">Весь вид</button></div>
    <div class="mn-wrap"><div class="mn-box" id="mnBox"><canvas id="mnC" aria-label="Карта смыслов: точки и темы"></canvas><div class="mn-tip" id="mnTip" hidden></div></div><aside class="mn-side" id="mnSide"></aside></div>`;
   const box=document.getElementById("mnBox"),cv=document.getElementById("mnC"),ctx=cv.getContext("2d"),tip=document.getElementById("mnTip"),side=document.getElementById("mnSide");
@@ -37,9 +37,17 @@ async function show(){const app=A();app.clearView();app.setNav("meaning");css();
   D.themes.forEach(t=>{if(t.ox==null){t.ox=t.x;t.oy=t.y}});D.nodes.forEach(n=>{if(n.dx==null){const t=D.themes[n.th];n.dx=n.x-t.ox;n.dy=n.y-t.oy}});
   const md=Math.max(...D.nodes.map(n=>Math.hypot(n.dx,n.dy)))||1;let narrow=false;
   function layout(){narrow=box.getBoundingClientRect().width<700;const G=D.groups||[];
-    box.style.touchAction=narrow?"pan-y":"none";if(!narrow){box.style.height="760px";const r=box.getBoundingClientRect();const w=r.width,h=r.height,bh=h/G.length,R=36;
-      G.forEach((g,gi)=>{g.px=14;g.py=gi*bh+16;const ts=D.themes.filter(t=>t.g===gi);ts.forEach((t,k)=>{const x=24+(k+.5)*(w-48)/ts.length,y=gi*bh+bh/2+8+(ts.length>2?(k%2?20:-14):0);t.x=x/w;t.y=y/h;t._al="c"})});
-      D.nodes.forEach(n=>{const t=D.themes[n.th];n.x=t.x+n.dx/md*R/w;n.y=t.y+n.dy/md*R/h})}
+    box.style.touchAction=narrow?"pan-y":"none";if(!narrow){box.style.height="780px";const r=box.getBoundingClientRect();const w=r.width,h=r.height;
+      /* атлас: группы — секторы круга, темы — на внутреннем кольце, точки — лучами наружу */
+      const cx=w/2,cy=h/2,R=Math.min(w,h)/2,R1=R*.56,R2=R*.9;const n=D.themes.length,gap=.10;let k=0;
+      const order=[];G.forEach((g,gi)=>D.themes.forEach((t,j)=>{if(t.g===gi)order.push(j)}));
+      const step=(Math.PI*2-gap*G.length)/n;let ang=-Math.PI/2;
+      G.forEach((g,gi)=>{const ts=order.filter(j=>D.themes[j].g===gi);g.a0=ang;ts.forEach(j=>{const t=D.themes[j];t._a=ang+step/2;t.x=(cx+Math.cos(t._a)*R1)/w;t.y=(cy+Math.sin(t._a)*R1)/h;t._al=Math.cos(t._a)>=0?"in-r":"in-l";ang+=step});g.a1=ang;
+        const am=(g.a0+g.a1)/2;g.px=cx+Math.cos(am)*(R2+R*.07);g.py=Math.max(14,Math.min(h-14,cy+Math.sin(am)*(R2+R*.07)));g._am=am;ang+=gap});
+      D._rad={cx,cy,R,R1,R2,w,h};
+      const byT={};D.nodes.forEach(nd=>{(byT[nd.th]=byT[nd.th]||[]).push(nd)});
+      Object.entries(byT).forEach(([j,L])=>{const t=D.themes[j];L.sort((a,b)=>b.sc-a.sc);L.forEach((nd,i)=>{const f=(i+.5)/L.length;const spread=step*.42;
+        const a=t._a+(((i*0.618)%1)-.5)*2*spread;const rr=R1+R*.09+(R2-R1-R*.09)*Math.sqrt(f);nd.x=(cx+Math.cos(a)*rr)/w;nd.y=(cy+Math.sin(a)*rr)/h})})}
     else{const rows=[];G.forEach((g,gi)=>{rows.push({g,gi});D.themes.filter(t=>t.g===gi).forEach(t=>rows.push({t}))});const hh=rows.reduce((s,r)=>s+(r.t?58:34),0)+12;box.style.height=hh+"px";
       const w=box.getBoundingClientRect().width,R=24;let y=8;rows.forEach(r=>{if(r.t){r.t.y=(y+29)/hh;r.t.x=(w-R-14)/w;r.t._al="l";y+=58}else{r.g.px=12;r.g.py=y+20;y+=34}});
       D.nodes.forEach(n=>{const t=D.themes[n.th];n.x=t.x+n.dx/md*R/w;n.y=t.y+n.dy/md*R/hh})}}
@@ -49,17 +57,24 @@ async function show(){const app=A();app.clearView();app.setNav("meaning");css();
     const maxw=Math.max(...D.links.map(l=>l.w));
     const TOPL=new Set(D.links.slice().sort((p,q)=>q.w-p.w).slice(0,14));
     D.links.forEach(l=>{if(focus<0&&(narrow||!TOPL.has(l)))return;const a=D.themes[l.a],b=D.themes[l.b];const act=focus<0||l.a===focus||l.b===focus;const [x1,y1]=P(a.x,a.y),[x2,y2]=P(b.x,b.y);
-      const bend=narrow?Math.min(W*.45,Math.abs(y2-y1)*.5):Math.abs(x2-x1)*.12+30;const mx=narrow?(x1+x2)/2-bend:(x1+x2)/2,my=narrow?(y1+y2)/2:Math.min(y1,y2)-bend;ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx,my,x2,y2);
-      ctx.strokeStyle=act?`rgba(120,130,150,${.18+.5*l.w/maxw})`:"rgba(120,130,150,.05)";ctx.lineWidth=(1+3*l.w/maxw)*(act?1:.6);ctx.stroke()});
+      const bend=narrow?Math.min(W*.45,Math.abs(y2-y1)*.5):0;const [ccx,ccy]=P(.5,.5);const mx=narrow?(x1+x2)/2-bend:ccx+((x1+x2)/2-ccx)*.25,my=narrow?(y1+y2)/2:ccy+((y1+y2)/2-ccy)*.25;ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx,my,x2,y2);
+      ctx.strokeStyle=act?(focus>=0?`rgba(224,58,30,${.35+.5*l.w/maxw})`:`rgba(26,26,26,${.08+.3*l.w/maxw})`):"rgba(26,26,26,.04)";ctx.lineWidth=(1+3*l.w/maxw)*(act?1:.6);ctx.stroke()});
     D.nodes.forEach(n=>{if(!on.has(n.k))return;const [x,y]=P(.5+(n.x-.5)*ease,.5+(n.y-.5)*ease);const act=focus<0||n.th===focus||n.th2===focus;
       ctx.globalAlpha=act?(n===hover?1:.85):.08;ctx.beginPath();ctx.arc(x,y,(n.k==="e"?3.6:n.k==="c"?5:2.8)*(n===hover?1.6:1),0,7);ctx.fillStyle=TC[n.k];ctx.fill();
       if(n===hover){ctx.lineWidth=2;ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue("--sheet").trim()||"#fff";ctx.stroke()}});
     ctx.globalAlpha=1;
-    (D.groups||[]).forEach((g,gi)=>{const [x,y]=P(g.px/W,g.py/H);const act=focus<0||D.themes[focus].g===gi;ctx.globalAlpha=act?.9:.3;ctx.font="600 12px JetBrains Mono, ui-monospace, monospace";ctx.fillStyle=muted;ctx.textAlign="left";ctx.textBaseline="middle";ctx.fillText(g.name.toUpperCase(),x,y)});
+    if(!narrow&&D._rad){const Rd=D._rad;(D.groups||[]).forEach((g,gi)=>{const act=focus<0||D.themes[focus].g===gi;const [cx,cy]=P(.5,.5);ctx.beginPath();ctx.arc(cx,cy,(Rd.R2+Rd.R*.04)*cam.z,g.a0,g.a1-.02);ctx.strokeStyle=act?ink:"rgba(26,26,26,.15)";ctx.lineWidth=act?3:2;ctx.stroke();
+      ctx.beginPath();ctx.arc(cx,cy,Rd.R1*cam.z,g.a0,g.a1-.02);ctx.strokeStyle="rgba(26,26,26,.12)";ctx.lineWidth=1;ctx.stroke()});
+      const [cx,cy]=P(.5,.5);ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillStyle=ink;ctx.font="600 28px Golos Text, system-ui, sans-serif";ctx.fillText(focus<0?D.themes.length+" тем":"",cx,cy-8);ctx.font="11px JetBrains Mono, monospace";ctx.fillStyle=muted;ctx.fillText(focus<0?"нажмите на тему":"",cx,cy+16)}
+    (D.groups||[]).forEach((g,gi)=>{const [x,y]=P(g.px/W,g.py/H);const act=focus<0||D.themes[focus].g===gi;ctx.globalAlpha=act?.9:.3;ctx.font="600 12px JetBrains Mono, ui-monospace, monospace";ctx.fillStyle=act?"#E03A1E":muted;ctx.textAlign=narrow?"left":"center";ctx.textBaseline="middle";ctx.fillText(g.name.toUpperCase(),x,y)});
     ctx.globalAlpha=1;
-    D.themes.forEach((t,j)=>{const [x,y]=P(t.x,t.y);const act=focus<0||j===focus||(nb&&nb.has(j));ctx.font=`${j===focus?"600 ":"500 "}13px Golos Text, system-ui, sans-serif`;
-      const w=ctx.measureText(t.name).width+16;ctx.globalAlpha=act?1:.3;ctx.fillStyle=j===focus?ink:"rgba(255,255,255,.92)";ctx.strokeStyle="rgba(20,24,29,.25)";ctx.lineWidth=1;
-      const lx=t._al==="l"?12+w/2:Math.max(w/2+6,Math.min(W-w/2-6,x));ctx.beginPath();ctx.roundRect(lx-w/2,y-12,w,24,12);ctx.fill();ctx.stroke();ctx.fillStyle=j===focus?"#fff":ink;ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(t.name,lx,y+.5);t._r=[lx-w/2,y-12,w,24]});
+    /* подписи тем не должны наезжать друг на друга: разводим по вертикали */
+    if(!narrow){ctx.font="500 13px Golos Text, system-ui, sans-serif";const R_=D.themes.map(t=>{const [x,y]=P(t.x,t.y);const w=ctx.measureText(t.name).width+16;const lx=t._al==="in-r"?x-w/2+6:x+w/2-6;return {t,lx,w,y}});
+      for(let it=0;it<60;it++){let mv=false;for(let a=0;a<R_.length;a++)for(let b=a+1;b<R_.length;b++){const A=R_[a],B=R_[b];if(Math.abs(A.lx-B.lx)<(A.w+B.w)/2+6&&Math.abs(A.y-B.y)<28){const d=(28-Math.abs(A.y-B.y))/2+.5,s=A.y<=B.y?-1:1;A.y+=s*d;B.y-=s*d;mv=true}}if(!mv)break}
+      R_.forEach(r=>{r.t._ly=r.y})}else D.themes.forEach(t=>{t._ly=null});
+    D.themes.forEach((t,j)=>{let [x,y]=P(t.x,t.y);if(t._ly!=null)y=t._ly;const act=focus<0||j===focus||(nb&&nb.has(j));ctx.font=`${j===focus?"600 ":"500 "}13px Golos Text, system-ui, sans-serif`;
+      const w=ctx.measureText(t.name).width+16;ctx.globalAlpha=act?1:.3;ctx.fillStyle=j===focus?"#E03A1E":"rgba(255,255,255,.96)";ctx.strokeStyle=j===focus?"#E03A1E":"rgba(26,26,26,.55)";ctx.lineWidth=1;
+      const lx=t._al==="l"?12+w/2:t._al==="in-r"?x-w/2+6:t._al==="in-l"?x+w/2-6:Math.max(w/2+6,Math.min(W-w/2-6,x));ctx.beginPath();ctx.roundRect(lx-w/2,y-12,w,24,2);ctx.fill();ctx.stroke();ctx.fillStyle=j===focus?"#fff":ink;ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(t.name,lx,y+.5);t._r=[lx-w/2,y-12,w,24]});
     ctx.globalAlpha=1;if(k<1)raf=requestAnimationFrame(draw)}
   function pick(mx,my){for(let j=D.themes.length-1;j>=0;j--){const r=D.themes[j]._r;if(r&&mx>=r[0]&&mx<=r[0]+r[2]&&my>=r[1]&&my<=r[1]+r[3])return {t:j}}
     let best=null,bd=144;D.nodes.forEach(n=>{if(!on.has(n.k))return;if(focus>=0&&n.th!==focus&&n.th2!==focus)return;const [x,y]=P(n.x,n.y);const d=(x-mx)**2+(y-my)**2;if(d<bd){bd=d;best=n}});return best?{n:best}:null}

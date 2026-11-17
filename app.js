@@ -412,7 +412,7 @@ function showHome(){
     n:{x:.66,y:.79,r:.07},valentina:{x:.50,y:.89,r:.05},masha:{x:.34,y:.79,r:.07},lina:{x:.22,y:.62,r:.07},
     msgs:{x:.89,y:.22,r:.09},museum:{x:.89,y:.74,r:.11},media:{x:.10,y:.86,r:.06},club:{x:.30,y:.91,r:.05}
   };
-  const META={club:{name:"Клуб энтузиастов",color:"#B5651D",what:"ваш двойник, разговоры двойников, посты, проекты",go:"club"},msgs:{name:"Переписка",color:"#C9A24A",what:"чаты из записей и двойники книги, которые отвечают",go:"msgs"},
+  const META={club:{name:"Клуб энтузиастов",color:"#E03A1E",what:"ваш двойник, разговоры двойников, посты, проекты",go:"club"},msgs:{name:"Переписка",color:"#C9A24A",what:"чаты из записей и двойники книги, которые отвечают",go:"msgs"},
     museum:{name:"Музей вещей",color:"#D8D2C4",what:`${OBJS.length} предметов из записей, десять залов`,go:"museum"},
     media:{name:"Плейлисты",color:"#C76B8C",what:"что слушает каждый персонаж",go:"media"}};
   const CHAT_TO={masha:"masha",valentina:"valentina",slm:"viktor",n:"n",club:"anton",superman:"viktor",v1:"v1",ncopy:"n",mark:"mark"};
@@ -506,7 +506,7 @@ function showHome(){
       if(p.t==="o"&&p.ph&&thumbs[p.o.id]&&thumbs[p.o.id].complete&&thumbs[p.o.id].naturalWidth){ctx.globalAlpha=a;ctx.save();ctx.beginPath();ctx.arc(p.X,p.Y,r,0,7);ctx.clip();const im=thumbs[p.o.id];ctx.drawImage(im,p.X-r*1.34,p.Y-r,r*2.68,r*2);ctx.restore();ctx.strokeStyle="rgba(240,232,214,.8)";ctx.lineWidth=1;ctx.beginPath();ctx.arc(p.X,p.Y,r,0,7);ctx.stroke()}
       else{ctx.globalAlpha=a*(p.t==="o"?.55:.92);if(p.t!=="o"){ctx.shadowColor=p.color;ctx.shadowBlur=hv?18:8}ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.X,p.Y,r,0,7);ctx.fill();ctx.shadowBlur=0;
         if(p.t==="e"&&seen.has(p.e.n)){ctx.strokeStyle="rgba(255,255,255,.85)";ctx.lineWidth=1;ctx.beginPath();ctx.arc(p.X,p.Y,r+2.2,0,7);ctx.stroke()}
-        if(p.t==="c"&&(!portrait||cam.z>1.5)){ctx.globalAlpha=a*.85;ctx.fillStyle="#E9E4DA";ctx.font="11px "+getComputedStyle(document.documentElement).getPropertyValue("--f-ui");ctx.textAlign="center";ctx.fillText(p.ch.name,p.X,p.Y+r+13);ctx.textAlign="left"}}
+        if(p.t==="c"&&(!portrait||cam.z>1.5)){ctx.globalAlpha=a*.85;ctx.fillStyle="#F2F2EE";ctx.font="11px "+getComputedStyle(document.documentElement).getPropertyValue("--f-ui");ctx.textAlign="center";ctx.fillText(p.ch.name,p.X,p.Y+r+13);ctx.textAlign="left"}}
       ctx.globalAlpha=1});
     /* подписи облаков следуют за камерой */
     LBL.forEach(l=>{const c=C[l.k];const s=toScr(c.x*AR,c.y-c.r*.95-.02);const b=lblEl[l.k];b.style.transform=`translate(${Math.round(s[0])}px,${Math.round(s[1])}px) translate(-50%,-100%)`;b.style.opacity=(focus&&focus!==l.k?.35:1)*ei});

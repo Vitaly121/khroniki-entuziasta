@@ -7,7 +7,7 @@ const A=()=>window.__APP;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const FLOORS=[
- {k:"551",name:"",who:"для тех, кто делает",what:"Дела: залы и агенты, которых куратор связал с работой и проектами.",tone:"#B5651D"},
+ {k:"551",name:"",who:"для тех, кто делает",what:"Дела: залы и агенты, которых куратор связал с работой и проектами.",tone:"#E03A1E"},
  {k:"43",name:"",who:"для тех, кто говорит",what:"Голоса: агенты читателей и залы о разговорах и письмах.",tone:"#2F6F6A"},
  {k:"17",name:"",who:"для тех, кто хранит",what:"То, что хранят: дом, семья, быт.",tone:"#27489A"},
  {k:"-1",name:"",who:"для тех, кто ищет",what:"Архив: десять залов книги и вещи, на которые никто не ответил.",tone:"#6B5B4E"},
@@ -99,22 +99,22 @@ const css=`
 .good b{font-weight:500;overflow-wrap:anywhere}.good small{color:var(--muted)}
 .till{font-family:var(--f-mono);font-size:44px;letter-spacing:.06em}
 .igfeed{display:grid;gap:16px;max-width:620px}
-.clubband{margin:0 0 18px;border:1px solid var(--line);border-left:6px solid #B5651D;background:var(--sheet);padding:18px 20px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px;align-items:center}
+.clubband{margin:0 0 18px;border:1px solid var(--line);border-left:6px solid #E03A1E;background:var(--sheet);padding:18px 20px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px;align-items:center}
 .clubband h2{margin:6px 0;font-family:var(--f-body);font-weight:400;font-size:clamp(22px,3.4vw,30px)}.clubband p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
 .bandbtns{display:flex;flex-wrap:wrap;gap:8px}
 .clubgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:12px;margin:8px 0 10px}
 .clubtile{all:unset;cursor:pointer;border:1px solid var(--line);background:var(--sheet);padding:14px 16px;display:flex;flex-direction:column;gap:6px;box-sizing:border-box}
-.clubtile b{font-family:var(--f-body);font-weight:400;font-size:19px}.clubtile span{font-size:14px;color:var(--muted);line-height:1.45}.clubtile em{font-style:normal;font-family:var(--f-mono);font-size:12px;color:#B5651D;margin-top:auto}
-.clubtile:hover,.clubtile:focus-visible{border-color:#B5651D;outline:none}
-.navclub{color:#B5651D!important;font-weight:600}
+.clubtile b{font-family:var(--f-body);font-weight:400;font-size:19px}.clubtile span{font-size:14px;color:var(--muted);line-height:1.45}.clubtile em{font-style:normal;font-family:var(--f-mono);font-size:12px;color:#E03A1E;margin-top:auto}
+.clubtile:hover,.clubtile:focus-visible{border-color:#E03A1E;outline:none}
+.navclub{color:#E03A1E!important;font-weight:600}
 .navsep{width:1px;background:var(--line);margin:4px 6px;align-self:stretch}
-.flgate{border:1px solid #B5651D;background:color-mix(in srgb,#B5651D 8%,var(--sheet));padding:12px 14px;display:flex;flex-direction:column;gap:4px;margin:0 0 14px;font-size:14px}.flgate span{color:var(--muted)}
+.flgate{border:1px solid #E03A1E;background:color-mix(in srgb,#E03A1E 8%,var(--sheet));padding:12px 14px;display:flex;flex-direction:column;gap:4px;margin:0 0 14px;font-size:14px}.flgate span{color:var(--muted)}
 .botb{font-family:var(--f-mono);font-size:9.5px;background:var(--stamp-soft);color:var(--stamp);padding:0 4px;border-radius:3px;vertical-align:1px}
 .mem{display:inline-block;border:1px solid;border-radius:999px;padding:1px 8px;margin:2px 2px;font-size:12px}
 .clubchat{height:min(78vh,780px);min-height:520px}.clubchat .chats{overflow-y:auto}.clubchat .thread{display:flex;flex-direction:column;min-height:0;height:100%}.clubchat .msgs{flex:1;min-height:0;overflow-y:auto}.clubchat .pinned{max-height:120px;overflow:auto}
 .flnum{line-height:1}
 .chats .grp{font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:12px 14px 4px}
-.pblock{margin-bottom:10px}.pcard{cursor:pointer}.pcard:hover,.pcard:focus-visible{border-color:#B5651D;outline:none}
+.pblock{margin-bottom:10px}.pcard{cursor:pointer}.pcard:hover,.pcard:focus-visible{border-color:#E03A1E;outline:none}
 .curnote{font-size:13px;border-top:1px dashed var(--line);padding-top:6px;margin:4px 0 0}.curnote small{color:var(--muted)}
 .flform label.ckl{display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--ink)}.flform .ckl input{width:auto;margin:0}
 .plists{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:18px;align-items:start}
@@ -171,7 +171,7 @@ function render(k,soft){const app=A();cur=k;st.set("cur",k);visited.add(k);st.se
 
 /* ---------- залы посетителей (17 и −1) ---------- */
 const TEMPL={kv:"Квартира",kl:"Кладовка",vt:"Витрина",ch:"Чердак",ps:"Почтовый ящик"};
-const SW=["#C9B79C","#8FA3B8","#B5651D","#2F6F6A","#6B5B4E","#C14F3F","#D9C26B","#4C5D8A","#9B8EA8","#3E3E3E"];
+const SW=["#C9B79C","#8FA3B8","#E03A1E","#2F6F6A","#6B5B4E","#C14F3F","#D9C26B","#4C5D8A","#9B8EA8","#3E3E3E"];
 function hallsOn(fl){return list("rooms","halls").filter(h=>String(h.floor||"17")===fl).sort((a,b)=>(b.at||0)-(a.at||0))}
 function hallCard(h){const own=h._u===S.uid,mod=S.owner&&!own;const ob=(Array.isArray(h.objs)?h.objs:[]).slice(0,LIM.objs);
   return `<article class="flcard" data-hall="${esc(h._u)}:${esc(h.id)}"><span class="meta">${esc(TEMPL[h.kind]||"Зал")} · ${esc(nm(h._u))} · предметов ${ob.length}</span><h3>${esc(h.name)}</h3>${h.about?`<p>${esc(h.about)}</p>`:""}
@@ -255,7 +255,7 @@ function roomMembers(r){const out=r.book.map(k=>{const b=BOOK_DOUBLES.find(x=>x.
   list("club","joins").filter(j=>j.room===r.key).forEach(j=>{const d=D.find(x=>x._u===j._u&&x.id===j.agent);if(d&&!out.some(o=>o.key==="a:"+d._u+":"+d.id))out.push({key:"a:"+d._u+":"+d.id,name:d.name,agent:d,by:j._u})});
   return out}
 function roomMsgs(key){return list("club","msgs").filter(m=>m.room===key).sort((a,b)=>(a.at||0)-(b.at||0)).slice(-60)}
-const COLR=["#2F7D55","#7A5A8C","#A04A5C","#1F2A6E","#B5651D","#2F6F6A","#4C5D8A","#9A6B2E","#6E6E73"];
+const COLR=["#2F7D55","#7A5A8C","#A04A5C","#1F2A6E","#E03A1E","#2F6F6A","#4C5D8A","#9A6B2E","#6E6E73"];
 const colOf=k=>{let h=0;for(const c of String(k))h=(h*31+c.charCodeAt(0))>>>0;return COLR[h%COLR.length]};
 function fromName(m){const f=m.from||{};if(f.t==="h")return nm(m._u)==="вы"?"вы":nm(m._u);return f.name||"агент"}
 function fNow(){return `<div class="msgr clubchat" data-pane="${matchMedia("(max-width:700px)").matches?"list":"thread"}"><div class="chats" id="rl"></div><div class="thread" id="rt"></div></div>
@@ -319,7 +319,7 @@ function wNow(){drawRooms();drawThread(true)}
 
 /* ---------- посты читателей: опубликованные разговоры ---------- */
 function visitorPost(t){const L=(Array.isArray(t.lines)?t.lines:[]);const who=t.kind==="duet"?"двойники между собой":t.kind==="book"?"разговор с двойником книги":"человек и двойник";
-  return `<article class="igpost"><div class="ighead"><span class="igava" style="background:#B5651D">${esc((nm(t._u)||"?").slice(0,1).toUpperCase())}</span><b>${esc(nm(t._u))}</b><span>${esc(who)} · ${new Date(t.at||0).toLocaleDateString("ru-RU")}</span></div>
+  return `<article class="igpost"><div class="ighead"><span class="igava" style="background:#E03A1E">${esc((nm(t._u)||"?").slice(0,1).toUpperCase())}</span><b>${esc(nm(t._u))}</b><span>${esc(who)} · ${new Date(t.at||0).toLocaleDateString("ru-RU")}</span></div>
    <p class="ighook">${esc(t.title||"Разговор")}</p>${t.cap?`<p class="ignext">${esc(t.cap)}</p>`:""}
    <details class="ighid"><summary>Запись разговора · реплик: ${L.length}</summary>${talkHTML(t)}</details>
    ${t._u===S.uid||S.owner?`<button type="button" class="lnk" data-deltalk="${esc(t._u)}:${esc(t.id)}">убрать пост</button>`:""}</article>`}
