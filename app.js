@@ -404,7 +404,11 @@ function showSame(n){
 
 /* ---------- главная ---------- */
 function showHome(){
-  if(window.Floors&&window.__APP){Floors.home();return}
+  setHash("");
+  /* гость без входа видит книгу, вошедший — клуб «Онлайн» */
+  const guest=!(window.claude&&typeof window.claude.use==="function")||(window.Backend&&window.Backend.guest);
+  const tl=document.querySelector('.tabbar [data-tab="home"] span');if(tl)tl.textContent=guest?"Книга":"Онлайн";
+  if(window.Floors&&window.__APP&&!guest){Floors.home();return}
   clearView();setNav("");
   /* облака условной карты эмбеддингов: x,y — доля ширины и высоты */
   const C={
@@ -418,7 +422,8 @@ function showHome(){
   const CHAT_TO={masha:"masha",valentina:"valentina",slm:"viktor",n:"n",club:"anton",superman:"viktor",v1:"v1",ncopy:"n",mark:"mark"};
   const vcount=k=>BOOK.filter(e=>group(e)===k).length;
   const first=BY[1];
-  view.innerHTML=`${window.Floors?Floors.homeBand():""}<section class="emb" aria-label="Карта смыслов">
+  const band=window.Floors?Floors.homeBand():"";
+  view.innerHTML=`<section class="emb" aria-label="Карта смыслов">
    <div class="embbox" id="eb"><canvas id="ec" aria-hidden="true"></canvas>
     <div class="emb-head"><div class="eyebrow">условная карта эмбеддингов · ${BOOK.length} записей · ${Object.keys(CHATS).length} чатов · ${OBJS.length} вещей<span id="embTr"></span></div>
      <h1>Год Viktor в&nbsp;пространстве смыслов</h1>
@@ -434,7 +439,7 @@ function showHome(){
     <button type="button" data-go="feed"><i style="background:var(--muted)"></i><b>Весь год по порядку</b><span>${BOOK.length} записей, все голоса вперемешку</span></button>
    </div>
    <div class="firstline">${esc((first&&first.seg[0]&&first.seg[0].t||"").split(/(?<=\.)\s/).slice(0,2).join(" "))}<small>запись 1 · Viktor · 15 марта 2027, самолёт садится</small></div></div>
-  </section>`;if(window.Floors)Floors.wireBand();
+  </section>${band}`;if(window.Floors)Floors.wireBand();
 
   const cv=$("#ec"),ctx=cv.getContext("2d"),box=$("#eb"),tip=$("#et"),card=$("#ecard"),labels=$("#elabels");
   const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -506,7 +511,7 @@ function showHome(){
       if(p.t==="o"&&p.ph&&thumbs[p.o.id]&&thumbs[p.o.id].complete&&thumbs[p.o.id].naturalWidth){ctx.globalAlpha=a;ctx.save();ctx.beginPath();ctx.arc(p.X,p.Y,r,0,7);ctx.clip();const im=thumbs[p.o.id];ctx.drawImage(im,p.X-r*1.34,p.Y-r,r*2.68,r*2);ctx.restore();ctx.strokeStyle="rgba(240,232,214,.8)";ctx.lineWidth=1;ctx.beginPath();ctx.arc(p.X,p.Y,r,0,7);ctx.stroke()}
       else{ctx.globalAlpha=a*(p.t==="o"?.55:.92);if(p.t!=="o"){ctx.shadowColor=p.color;ctx.shadowBlur=hv?18:8}ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.X,p.Y,r,0,7);ctx.fill();ctx.shadowBlur=0;
         if(p.t==="e"&&seen.has(p.e.n)){ctx.strokeStyle="rgba(255,255,255,.85)";ctx.lineWidth=1;ctx.beginPath();ctx.arc(p.X,p.Y,r+2.2,0,7);ctx.stroke()}
-        if(p.t==="c"&&(!portrait||cam.z>1.5)){ctx.globalAlpha=a*.85;ctx.fillStyle="#F2F2EE";ctx.font="11px "+getComputedStyle(document.documentElement).getPropertyValue("--f-ui");ctx.textAlign="center";ctx.fillText(p.ch.name,p.X,p.Y+r+13);ctx.textAlign="left"}}
+        if(p.t==="c"&&(p===hover||cam.z>2.2)){ctx.globalAlpha=a*.85;ctx.fillStyle="#F2F2EE";ctx.font="11px "+getComputedStyle(document.documentElement).getPropertyValue("--f-ui");ctx.textAlign="center";ctx.fillText(p.ch.name,p.X,p.Y+r+13);ctx.textAlign="left"}}
       ctx.globalAlpha=1});
     /* подписи облаков следуют за камерой */
     LBL.forEach(l=>{const c=C[l.k];const s=toScr(c.x*AR,c.y-c.r*.95-.02);const b=lblEl[l.k];b.style.transform=`translate(${Math.round(s[0])}px,${Math.round(s[1])}px) translate(-50%,-100%)`;b.style.opacity=(focus&&focus!==l.k?.35:1)*ei});
@@ -1162,7 +1167,19 @@ function showSearch(q){
 
 /* ---------- маршрутизация ---------- */
 window.__goMsgs=v=>go(v);
-function go(v){const [a,b]=String(v).split(":");({feed:showFeed,voices:showVoices,map:()=>(window.Chron?Chron.show():showMap()),msgs:()=>showMsgs(b),media:showMedia,museum:()=>(window.Floors?Floors.go(b||"-1"):showMuseum()),floor:()=>(window.Floors?Floors.go(b):showMuseum()),posts:showPosts,club:()=>(window.Floors?Floors.club():showHome()),meaning:()=>(window.Meaning?Meaning.show():showHome()),tally:()=>(window.Stats?Stats.show():showTally()),home:showHome,search:()=>showSearch(b?decodeURIComponent(b):"")})[a]()}
+/* адреса разделов: #meaning, #msgs:n, #e12 — ими можно делиться, работает «Назад» */
+let _routing=false;
+function setHash(h){if(_routing)return;const cur=(location.hash||"").slice(1);if(cur===h)return;try{history.pushState(null,"",h?"#"+h:location.pathname+location.search)}catch(e){}}
+const VIEWS=["feed","voices","map","msgs","media","museum","floor","tally","posts","club","meaning","search","home"];
+function route(h){_routing=true;try{
+  if(!h||h==="home")showHome();
+  else if(/^(floor[-:]|invite:)/.test(h)&&window.Floors)Floors.go(h);
+  else if(/^e\d+$/.test(h))openUnit(+h.slice(1));
+  else if(/^o:/.test(h))showObj(decodeURIComponent(h.slice(2)));
+  else if(VIEWS.includes(h.split(":")[0]))go(h);
+  else showHome()}finally{_routing=false}}
+window.addEventListener("popstate",()=>{document.querySelectorAll(".overlay,.loupe").forEach(x=>x.remove());route((location.hash||"").slice(1))});
+function go(v){const [a,b]=String(v).split(":");if(a!=="museum"&&a!=="floor")setHash(a==="search"?"search":String(v));({feed:showFeed,voices:showVoices,map:()=>(window.Chron?Chron.show():showMap()),msgs:()=>showMsgs(b),media:showMedia,museum:()=>(window.Floors?Floors.go(b||"-1"):showMuseum()),floor:()=>(window.Floors?Floors.go(b):showMuseum()),posts:showPosts,club:()=>(window.Floors?Floors.club():showHome()),meaning:()=>(window.Meaning?Meaning.show():showHome()),tally:()=>(window.Stats?Stats.show():showTally()),home:showHome,search:()=>showSearch(b?decodeURIComponent(b):"")})[a]()}
 document.addEventListener("click",ev=>{
   const o=ev.target.closest("[data-open]");if(o){const ov=o.closest(".overlay");if(ov)ov.remove();openUnit(+o.dataset.open);return}
   const s=ev.target.closest("[data-same]");if(s){showSame(+s.dataset.same);return}
@@ -1186,7 +1203,7 @@ window.__textReady=!!window.BOOKTEXT;
 const TEXT=new Promise(res=>{if(window.BOOKTEXT)return res();const s=document.createElement("script");s.src="data-text.js";s.onload=res;s.onerror=res;document.head.appendChild(s)})
   .then(()=>{const T=window.BOOKTEXT||{},X=window.BOOKX||{};BOOK.forEach(e=>{if(T[e.n])e.seg=T[e.n];if(X[e.n])Object.assign(e,X[e.n])});window.__textReady=true;document.dispatchEvent(new Event("textready"))});
 function whenText(fn){return function(...args){if(window.__textReady)return fn.apply(this,args);clearView();view.innerHTML=`<p class="hint loading">Загружаются записи…</p>`;TEXT.then(()=>fn.apply(this,args))}}
-openUnit=whenText(openUnit);showSame=whenText(showSame);showFeed=whenText(showFeed);showVoices=whenText(showVoices);showVoice=whenText(showVoice);showMap=whenText(showMap);showMsgs=whenText(showMsgs);showTally=whenText(showTally);showSearch=whenText(showSearch);showPosts=whenText(showPosts);
+openUnit=(f=>function(n,...r){setHash("e"+n);return f.call(this,n,...r)})(whenText(openUnit));showSame=whenText(showSame);showFeed=whenText(showFeed);showVoices=whenText(showVoices);showVoice=whenText(showVoice);showMap=whenText(showMap);showMsgs=whenText(showMsgs);showTally=whenText(showTally);showSearch=whenText(showSearch);showPosts=whenText(showPosts);
 window.__APP={GROUPS,group,ORDER,BLOCKS,BOOK,BY,OBJS,HALLS,esc,view,clearView,setNav,showMuseum,openUnit,showObj,go,lab,imgOf,objThumb,getSampler,NET,cleanup:()=>cleanup,whenText};document.dispatchEvent(new Event("appready"));
-if(["feed","voices","map","msgs","media","museum","tally","posts","club","meaning"].includes(h))go(h);else if(/^(floor[-:]|invite:)/.test(h)&&window.Floors)Floors.go(h);else if(/^e\d+$/.test(h))openUnit(+h.slice(1));else showHome();
+route(h);
 })();

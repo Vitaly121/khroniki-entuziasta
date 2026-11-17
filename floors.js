@@ -159,12 +159,12 @@ function go(k){const app=A();if(!app)return;k=String(k||"-1").replace(/^floor[-:
   if(/^invite:/.test(k)){const c=k.slice(7).toUpperCase();cur="43";st.set("pendingInvite",c);render("43");return}
   if(!FL[k])k="-1";
   if(k==="inf"&&!unlocked()){k=cur&&cur!=="inf"?cur:"-1"}
-  if(k==="-1"){app.showMuseum();app.setNav("museum");try{history.replaceState(null,"","#floor-m1")}catch(e){}return}
+  if(k==="-1"){app.showMuseum();app.setNav("museum");try{if(location.hash!=="#floor-m1")history.pushState(null,"","#floor-m1")}catch(e){}return}
   render(k)}
 function render(k,soft){const app=A();cur=k;st.set("cur",k);visited.add(k);st.set("visited",[...visited]);init();
   if(soft){const typing=[...A().view.querySelectorAll("input:not([type=checkbox]):not([type=number]),textarea")].some(x=>x.value&&x.value!==x.defaultValue);if(typing){clearTimeout(rT);rT=setTimeout(redraw,4000);return}const cb=$("#chatBox"),du=$("#duetOut");if((cb&&cb.innerHTML.trim())||(du&&du.innerHTML.trim()))return}
   if(!soft){app.clearView();window.scrollTo(0,0)}
-  app.setNav("museum");try{history.replaceState(null,"","#floor-"+k)}catch(e){}
+  app.setNav("museum");try{if(location.hash!=="#floor-"+k)history.pushState(null,"","#floor-"+k)}catch(e){}
   const body={"17":()=>fFloor("17"),"43":()=>fFloor("43"),"551":()=>fFloor("551"),"inf":fInf}[k]();
   app.view.innerHTML=liftHTML(k)+`<div data-floorview="${k}">${lockNote()}${body}</div>`;wireLift();
   ({"17":wFloor,"43":wFloor,"551":wFloor,"inf":wInf}[k])()}

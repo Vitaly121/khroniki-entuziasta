@@ -2,8 +2,8 @@
 window.Stats=(function(){
 "use strict";
 const A=()=>window.__APP;
-const PAL=["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#6250d6"];
-const PAL_D=["#3987e5","#d95926","#199e70","#c98500","#d55181","#008300","#9085e9"];
+const PAL=["#1A1A1A","#E03A1E","#3D6B8C","#A39E92","#7B6A9C","#5E7D5A","#C28A2B"];
+const PAL_D=["#EDEDE8","#FF5A3C","#6FA3C8","#8C877C","#A796CC","#8FB389","#D9A441"];
 let blk=13,playing=null,hidden=new Set();
 /* Кривая растворения: кто ведёт связи Viktor — он сам, он вместе с копией, копия или никто. Сведено ИИ по записям; каждая смена — номер записи. */
 const DISS=[
@@ -17,7 +17,7 @@ const DISS=[
  ["Работа",[[4,"m","4: лаборатория; рабочая копия Viktor-1 рядом"],[68,"m","68: чат «команда» — копии коллег"],[141,"x","141–142: материалы переданы, станция выдана"]]],
  ["Лента",[[60,"s","60: первый пост, сам"],[93,"c","93: с конца февраля посты в 9:00 ведёт «Viktor от Valentina»"]]],
  ["Дневник",[[1,"s","свой дневник"],[121,"m","121: «Записали без меня. Правильно записали»"],[143,"c","143: дневник ведёт Viktor-1"]]]];
-const DST={s:["сам","#2a78d6",1],m:["сам и копия","#2a78d6",.45],c:["копия","#1baf7a",1],x:["связи нет","#9aa3ab",.18]};
+const DST={s:["сам","#77776F",1],m:["сам и копия","#77776F",.45],c:["копия","#E03A1E",1],x:["связи нет","#9A9A94",.18]};
 
 function css(){if(document.getElementById("statsCss"))return;const s=document.createElement("style");s.id="statsCss";s.textContent=`
 .st-hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:0 0 18px}
@@ -32,7 +32,7 @@ function css(){if(document.getElementById("statsCss"))return;const s=document.cr
 .st-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr));gap:18px}
 .st-card{border:1px solid var(--line);background:var(--sheet);padding:14px 16px;min-width:0;position:relative}
 .st-wide{margin:14px 0}#chDis{overflow-x:auto}@media (max-width:700px){#chDis svg{min-width:780px}}.st-leg{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted);margin-top:6px}.st-leg span{display:inline-flex;gap:6px;align-items:center}.st-leg i{width:12px;height:12px;border-radius:3px;display:inline-block}
-.st-card h3{margin:0;font-family:var(--f-body);font-weight:400;font-size:20px}.st-card p.d{margin:2px 0 8px;color:var(--muted);font-size:13px}
+.st-card h3{margin:0;font-family:var(--f-ui);font-weight:600;font-size:19px}.st-card p.d{margin:2px 0 8px;color:var(--muted);font-size:13px}
 .st-card svg{width:100%;height:auto;display:block;overflow:visible}
 .st-card .ax{font-family:var(--f-mono);font-size:9.5px;fill:var(--muted)}
 .st-card .grid{stroke:var(--line-soft);stroke-width:1}
@@ -84,8 +84,8 @@ function show(){const app=A(),S=window.BOOKDATA.stats,esc=app.esc;app.clearView(
     const share=S.blocks.map((_,b)=>{let act=0,v=0;st.forEach(r=>{const c=r[b];if(!c||c[1]==="x")return;act++;v+=c[1]==="c"?1:c[1]==="m"?.5:0});return act?v/act:0});
     let g=`<rect class="band" data-dband x="${left+blk*cw}" y="8" width="${cw}" height="${DH-40}"/>`;
     [0,.5,1].forEach(v=>{const y=8+70*(1-v);g+=`<line class="grid" x1="${left}" x2="${DW-10}" y1="${y}" y2="${y}"/><text class="ax" x="${left-6}" y="${y+3}" text-anchor="end">${Math.round(v*100)}%</text>`});
-    g+=`<path d="${share.map((v,b)=>(b?"L":"M")+(left+b*cw+cw/2).toFixed(1)+" "+(8+70*(1-v)).toFixed(1)).join(" ")}" fill="none" stroke="#1baf7a" stroke-width="2.5" stroke-linejoin="round"/>`;
-    share.forEach((v,b)=>{g+=`<circle cx="${left+b*cw+cw/2}" cy="${8+70*(1-v)}" r="3.5" fill="#1baf7a" data-tt="${esc(S.blocks[b])}<br>копия ведёт <b>${Math.round(v*100)}%</b> связей"/>`});
+    g+=`<path d="${share.map((v,b)=>(b?"L":"M")+(left+b*cw+cw/2).toFixed(1)+" "+(8+70*(1-v)).toFixed(1)).join(" ")}" fill="none" stroke="#E03A1E" stroke-width="2.5" stroke-linejoin="round"/>`;
+    share.forEach((v,b)=>{g+=`<circle cx="${left+b*cw+cw/2}" cy="${8+70*(1-v)}" r="3.5" fill="#E03A1E" data-tt="${esc(S.blocks[b])}<br>копия ведёт <b>${Math.round(v*100)}%</b> связей"/>`});
     DISS.forEach(([name],i)=>{const y=top+i*rowH;g+=`<text class="ax" x="${left-8}" y="${y+14}" text-anchor="end" style="font-family:var(--f-ui);font-size:12px;fill:var(--ink)">${esc(name)}</text>`;
       st[i].forEach((c,b)=>{if(!c)return;const d=DST[c[1]];g+=`<rect x="${left+b*cw+1}" y="${y+2}" width="${cw-2}" height="${rowH-4}" rx="3" fill="${d[1]}" fill-opacity="${d[2]}" data-open="${c[0]}" style="cursor:pointer" data-tt="${esc(name)} · ${esc(S.blocks[b])}<br><b>${d[0]}</b><br>${esc(c[2])}"/>`})});
     S.blocks.forEach((l,b)=>{if(b%2===0||b===nb-1)g+=`<text class="ax" x="${left+b*cw+cw/2}" y="${DH-24}" text-anchor="end" transform="rotate(-35 ${left+b*cw+cw/2} ${DH-24})">${esc(l)}</text>`});

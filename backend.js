@@ -6,7 +6,7 @@
 const C=window.SITE_BACKEND||{};
 if(window.claude&&typeof window.claude.use==="function")return;
 if(!C.supabaseUrl||!C.anonKey)return;
-const LIB=["https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js","https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"];
+const LIB=["vendor/supabase.js","https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"];
 const TAB=Math.random().toString(36).slice(2,10);
 let sbP=null;
 function lib(){return new Promise((res,rej)=>{let i=0;(function next(){if(window.supabase&&window.supabase.createClient)return res();if(i>=LIB.length)return rej(new Error("lib"));
@@ -109,7 +109,8 @@ function login(){css();if(document.querySelector(".be-ov"))return;let mode="in";
         msg.textContent=/Invalid login/i.test(m)?"Почта или пароль не подходят.":/already registered/i.test(m)?"Такая почта уже зарегистрирована — войдите.":/rate|limit/i.test(m)?"Слишком много попыток. Подождите минуту.":"Не получилось. Попробуйте ещё раз."}}};
   draw();ov.addEventListener("pointerdown",ev=>{if(ev.target===ov)ov.remove()})}
 async function logout(){const sb=await client();await sb.auth.signOut();location.reload()}
-window.Backend={login,logout,configured:true};
+let hasSes=false;try{hasSes=Object.keys(localStorage).some(k=>/^sb-.+-auth-token$/.test(k))}catch(e){}
+window.Backend={login,logout,configured:true,guest:!hasSes};
 /* кнопка «Войти» в шапке и в подсказках открывает окно входа, а не Claude */
 document.addEventListener("click",ev=>{const a=ev.target.closest&&ev.target.closest(".whoin");if(a){ev.preventDefault();login()}},true);
 /* «Выйти» в подвале */

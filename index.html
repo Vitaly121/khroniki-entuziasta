@@ -4,9 +4,20 @@
 <title>Хроники энтузиаста</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bad+Script&family=Caveat:wght@500&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Literata:ital,opsz,wght@0,7..72,300;0,7..72,400;0,7..72,600;1,7..72,400&family=Marck+Script&display=swap">
+<meta name="description" content="Второй слой романа: год Viktor в 154 записях, переписка, двойники, которые отвечают, музей вещей и карта смыслов.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Хроники энтузиаста">
+<meta property="og:title" content="Хроники энтузиаста">
+<meta property="og:description" content="Второй слой романа: год Viktor в 154 записях, переписка, двойники, которые отвечают, музей вещей и карта смыслов.">
+<meta property="og:url" content="https://vitaly121.github.io/khroniki-entuziasta/">
+<meta property="og:image" content="https://vitaly121.github.io/khroniki-entuziasta/og.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:locale" content="ru_RU">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#FAFAF7">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231A1A1A'/%3E%3Crect y='26' width='32' height='6' fill='%23E03A1E'/%3E%3Ctext x='16' y='21' font-family='Arial' font-weight='700' font-size='19' fill='%23FAFAF7' text-anchor='middle'%3E%D0%A5%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="fonts.css">
 <style>
 /* Layout: архивная база. Узкая служебная шапка; материал слева в своём носителе, справа — карточка единицы хранения. */
 :root{
@@ -607,7 +618,7 @@ a{text-decoration-thickness:1px;text-underline-offset:3px}
 <script>
 /* three.js: основной адрес и два запасных */
 (function(){
-  const urls=["https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js","https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js","https://unpkg.com/three@0.128.0/build/three.min.js"];
+  const urls=["vendor/three.min.js","https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js","https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js","https://unpkg.com/three@0.128.0/build/three.min.js"];
   let i=0;window.THREE_READY=new Promise(res=>{
     function next(){ if(window.THREE){res(true);return} if(i>=urls.length){res(false);return}
       const s=document.createElement("script");s.src=urls[i++];s.onload=()=>res(!!window.THREE);s.onerror=next;document.head.appendChild(s);}
