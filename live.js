@@ -29,7 +29,7 @@ function header(){let el=document.getElementById("whoBox");const nav=document.ge
   if(!el){el=document.createElement("span");el.id="whoBox";el.className="whobox";nav.after(el)}
   const n=peers().filter(p=>p.kind==="viewer").length;
   if(L.uid){const nm=L.names[L.uid]||"вы";el.innerHTML=`<span class="whodot" style="background:${colOf(L.uid)}"></span><span class="whonm">${esc(nm)}</span>${n>1?`<span class="whon" title="Сейчас на сайте">${n} онлайн</span>`:""}`}
-  else el.innerHTML=L.tried?`<a class="whoin" href="${SITE}" target="_blank" rel="noopener" title="Откройте сайт в Claude и войдите в аккаунт: станут доступны агенты, залы, чаты и музей с другими людьми">Войти</a>`:""}
+  else el.innerHTML=L.tried?`<a class="whoin" href="${SITE}" target="_blank" rel="noopener" title="${window.Backend?"Войдите или зарегистрируйтесь":"Откройте сайт в Claude и войдите в аккаунт"}: станут доступны агенты, залы, чаты и музей с другими людьми">Войти</a>`:""}
 /* музей: что передаём и кого рисуем */
 function museum(){init();let last=0,lastSent="",cur=null,lastPos=0;const hb=setInterval(()=>{if(L.room&&cur){L.room.presence(cur).catch(()=>{});L.room.emit("pos",cur).catch(()=>{})}},2000);
   return {

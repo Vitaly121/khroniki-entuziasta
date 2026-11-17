@@ -47,7 +47,7 @@ async function writeOf(c,u,fn){if(u===S.uid)return writeMine(c,fn);if(!S.owner)t
 const rid=()=>Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-3);
 const code=()=>{const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";for(let i=0;i<8;i++){s+=a[Math.floor(Math.random()*a.length)];if(i===3)s+="-"}return s};
 const canWrite=()=>!!(S.db&&S.uid);
-const lockNote=()=>S.tried&&!canWrite()?`<p class="flnote">Смотреть можно всем. Чтобы добавить своё, откройте сайт в Claude и войдите в аккаунт; если запись не проходит, значит, автор ещё не открыл вам доступ.</p>`:(!S.tried?`<p class="flnote">Подключаем общую базу…</p>`:"");
+const lockNote=()=>S.tried&&!canWrite()?`<p class="flnote">Смотреть можно всем. Чтобы добавить своё, ${window.Backend?"нажмите «Войти» вверху страницы":"откройте сайт в Claude и войдите в аккаунт"}; если запись не проходит, значит, автор ещё не открыл вам доступ.</p>`:(!S.tried?`<p class="flnote">Подключаем общую базу…</p>`:"");
 const errText=e=>/not owner/.test(String(e&&e.message))?"Чужое может убрать только владелец сайта.":"Не получилось сохранить. Возможно, у вас нет доступа к записи в общую базу.";
 function msg(el,t){if(el){el.textContent=t;setTimeout(()=>{if(el.textContent===t)el.textContent=""},5000)}}
 
@@ -242,7 +242,7 @@ function homeBand(){return `<section class="clubband" aria-label="Клуб эн�
 function wireBand(){}
 let clubTab="now";
 function loginBox(){if(canWrite())return `<p class="flnote">Вы вошли${S.uid&&S.names[S.uid]?" как "+esc(S.names[S.uid]):""}: можно добавлять агентов и залы, писать в чатах и вступать в проекты.</p>`;
-  return `<div class="flgate"><b>Войдите, чтобы участвовать</b><span>Читать клуб можно всем. Создавать агентов и залы, писать в чатах и вступать в проекты могут вошедшие участники: откройте сайт в Claude и войдите в аккаунт${S.tried&&S.db?". Если запись всё равно не проходит — автор ещё не открыл вам доступ":""}.</span></div>`}
+  return `<div class="flgate"><b>Войдите, чтобы участвовать</b><span>Читать клуб можно всем. Создавать агентов и залы, писать в чатах и вступать в проекты могут вошедшие участники: ${window.Backend?"нажмите «Войти» вверху страницы":"откройте сайт в Claude и войдите в аккаунт"}${S.tried&&S.db?". Если запись всё равно не проходит — автор ещё не открыл вам доступ":""}.</span></div>`}
 function club(soft){openProj=null;return clubPage(soft)}
 /* ---------- Онлайн: групповые чаты, где пишут агенты ---------- */
 const GEN_ROOM={key:"d:open",title:"Общий чат клуба",topic:"Агенты книги и читателей знакомятся, спорят и зовут друг друга в проекты",book:["v1","vn","vv","father"]};
@@ -299,7 +299,7 @@ function pickSpeaker(r,lastText){const mem=roomMembers(r);if(!mem.length)return 
   const t=String(lastText||(last&&last.text)||"").toLowerCase();
   const named=mem.filter(m=>t.includes("@"+m.name.toLowerCase())||t.includes(m.name.toLowerCase()));
   const pool=(named.length?named:mem).filter(m=>m.key!==lastKey);const P=pool.length?pool:mem;return P[Math.floor(Math.random()*P.length)]}
-async function speak(r,m){if(!m||AUTO.busy)return;const sample=await A().getSampler();if(!sample){const h=$("#autoH");if(h)h.textContent="Агенты говорят, только когда сайт открыт в Claude.";stopAuto();return}
+async function speak(r,m){if(!m||AUTO.busy)return;const sample=await A().getSampler();if(!sample){const h=$("#autoH");if(h)h.textContent=(window.Backend?"Агенты говорят после входа на сайт.":"Агенты говорят, только когда сайт открыт в Claude.");stopAuto();return}
   AUTO.busy=true;const ty=$("#rty");if(ty)ty.textContent=m.name+" печатает…";
   try{const M=roomMsgs(r.key).slice(-14);const mem=roomMembers(r);
     const hist=M.map(x=>fromName(x)+": "+String(x.text).replace(/\s+/g," ").slice(0,400)).join("\n")||"(сообщений ещё нет — начни разговор по теме)";
@@ -519,7 +519,7 @@ function openChat(key){const d=findD(key);const box=$("#chatBox");if(!d||!box)re
   $("#chatClose").onclick=()=>{box.innerHTML=""};
   $("#chatF").onsubmit=async ev=>{ev.preventDefault();const v=$("#chatIn").value.trim();if(!v||lines.length>=LIM.lines)return;$("#chatIn").value="";lines.push({s:"me",w:"вы",t:v.slice(0,300)});draw();
     const b=$("#chatF button");b.disabled=true;const hist=lines.map(l=>({role:l.s==="me"?"user":"assistant",content:l.t}));
-    try{const t=await ask(d,hist);lines.push({s:"a",w:d.name,t:t||"…"})}catch(e){lines.push({s:"a",w:"сайт",t:/nosample/.test(e.message)?"Двойник отвечает, только когда сайт открыт в Claude.":"Двойник сейчас не отвечает. Попробуйте позже."})}draw();b.disabled=false};
+    try{const t=await ask(d,hist);lines.push({s:"a",w:d.name,t:t||"…"})}catch(e){lines.push({s:"a",w:"сайт",t:/nosample/.test(e.message)?(window.Backend?"Двойник отвечает после входа на сайт.":"Двойник отвечает, только когда сайт открыт в Claude."):"Двойник сейчас не отвечает. Попробуйте позже."})}draw();b.disabled=false};
   $("#chatPub").onclick=async()=>{const m=box.querySelector("[data-m]");try{await writeMine("talks",x=>{x.items=(x.items||[]).slice(0,LIM.talks-1);x.items.unshift({id:rid(),kind:"solo",title:($("#chatTitle").value.trim()||"Разговор с двойником «"+d.name+"»").slice(0,80),cap:$("#chatCap").value.trim().slice(0,200),a:{u:d._u,id:d.id},lines:lines.slice(0,LIM.lines),pub:true,at:Date.now()});return x});msg(m,"Запись опубликована на этаже 43.");setTimeout(()=>{box.innerHTML="";render("43",false)},900)}catch(e){msg(m,errText(e))}}}
 function w43(){const v=A().view;
   const nd=v.querySelector("#newDouble");if(nd)nd.onsubmit=async ev=>{ev.preventDefault();const f=new FormData(nd),b=nd.querySelector("button");b.disabled=true;const of=f.get("of")==="other"?"other":"self";const c=code();
@@ -541,7 +541,7 @@ function w43(){const v=A().view;
         const hist=lines.map(l=>({role:l.s===(i%2?"b":"a")?"assistant":"user",content:l.t}));if(!hist.length)hist.push({role:"user",content:`(Тема разговора: ${topic}. Твой собеседник — двойник «${other.name}». Начни.)`});
         else if(hist[0].role==="assistant")hist.unshift({role:"user",content:`(Тема: ${topic}. Собеседник — двойник «${other.name}».)`});
         const t=await ask(sp,hist,`Ты разговариваешь с другим двойником, «${other.name}». Тема: ${topic}. Отвечай на его последнюю реплику.`);lines.push({s:i%2?"b":"a",w:sp.name,t:t||"…"});draw(false)}}
-    catch(e){lines.push({s:"a",w:"сайт",t:/nosample/.test(e.message)?"Двойники говорят, только когда сайт открыт в Claude.":"Разговор прервался."})}
+    catch(e){lines.push({s:"a",w:"сайт",t:/nosample/.test(e.message)?(window.Backend?"Двойники говорят после входа на сайт.":"Двойники говорят, только когда сайт открыт в Claude."):"Разговор прервался."})}
     draw(true);btn.disabled=false;const pb=$("#duetPub");if(pb)pb.onclick=async()=>{const mm=out.querySelector("[data-m]");try{await writeMine("talks",x=>{x.items=(x.items||[]).slice(0,LIM.talks-1);x.items.unshift({id:rid(),kind:"duet",title:`«${a.name}» и «${b.name}»: ${topic}`.slice(0,80),cap:(($("#duetCap")||{}).value||"").trim().slice(0,200),a:{u:a._u,id:a.id},b:{u:b._u,id:b.id},lines:lines.slice(0,LIM.lines),pub:true,at:Date.now()});return x});msg(mm,"Запись опубликована.");setTimeout(()=>{out.innerHTML="";render("43",false)},900)}catch(e){msg(mm,errText(e))}}}}
 
 /* ---------- 551 · Верстак: проекты Клуба энтузиастов ---------- */
