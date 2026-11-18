@@ -1,0 +1,13 @@
+{
+  "kv": {"tracks": ["placeholder-1.wav", "placeholder-2.wav"], "volume": 0.6, "shuffle": false, "loop": true},
+  "pr": {"tracks": [], "volume": 0.6, "shuffle": false, "loop": true},
+  "id": {"tracks": [], "volume": 0.6, "shuffle": false, "loop": true},
+  "sv": {"tracks": [], "volume": 0.6, "shuffle": false, "loop": true},
+  "dv": {"tracks": [], "volume": 0.6, "shuffle": false, "loop": true},
+  "ot": {"tracks": [], "volume": 0.6, "shuffle": false, "loop": true},
+  "se": {"tracks": [], "volume": 0.6, "shuffle": false, "loop": true},
+  "n": {"tracks": [], "volume": 0.6, "shuffle": false, "loop": true},
+  "kl": {"tracks": [], "volume": 0.6, "shuffle": false, "loop": true},
+  "kr": {"tracks": [], "volume": 0.6, "shuffle": false, "loop": true},
+  "hb": {"tracks": ["placeholder-3.wav"], "volume": 0.7, "shuffle": false, "loop": true}
+}
