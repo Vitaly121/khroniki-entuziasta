@@ -41,8 +41,20 @@ function museum(){init();let last=0,lastSent="",cur=null,lastPos=0;const hb=setI
       const s={x:+P.x.toFixed(2),z:+P.z.toFixed(2),yaw:+P.yaw.toFixed(2),hall:String(hall||""),place:"museum"};const g=gOf(P.g);if(g)s.g=g;const lk=kOf(P.k);if(lk)s.k=lk;cur=s;if(now-lastPos>240){lastPos=now;L.room.emit("pos",s).catch(()=>{})}const k=JSON.stringify(s);if(k===lastSent)return;lastSent=k;L.room.presence(s).catch(()=>{})},
     leave(){clearInterval(hb);cur=null;if(L.room)L.room.emit("pos",{place:null}).catch(()=>{});if(L.room)L.room.presence({place:null,x:null,z:null,yaw:null,hall:null}).catch(()=>{})},
     others(){return peers().filter(p=>!p.sameTab&&p.kind==="viewer"&&p.presence&&p.presence.place==="museum"&&isFinite(p.presence.x)&&isFinite(p.presence.z)).map(p=>{
-      const say=[...L.msgs].reverse().find(m=>m.peer===p.peer&&Date.now()-m.at<7000);
-      return {id:p.peer,name:nameOf(p),x:+p.presence.x,z:+p.presence.z,yaw:+p.presence.yaw||0,color:colOf(p.by||p.peer),say:say?say.text:"",g:gOf(p.presence.g),k:kOf(p.presence.k)}})}}}
+      /* реплика над фигурой (этап 7): последняя фраза посетителя — 30 с от времени сообщения (at); sayAt — это время, чтобы музей гасил пузырь вовремя */
+      const say=[...L.msgs].reverse().find(m=>m.peer===p.peer&&Date.now()-m.at<SAY_MS);
+      return {id:p.peer,name:nameOf(p),x:+p.presence.x,z:+p.presence.z,yaw:+p.presence.yaw||0,color:colOf(p.by||p.peer),say:say?say.text:"",sayAt:say?say.at:0,g:gOf(p.presence.g),k:kOf(p.presence.k)}})},
+    /* своя последняя фраза (для пузыря над своей фигурой в виде из-за спины) */
+    mine(){const m=[...L.msgs].reverse().find(m=>m.me);return m&&Date.now()-m.at<SAY_MS?{text:m.text,at:m.at}:null},
+    /* этап 7: чат зала внутри музея (полноэкранный вид) — тот же канал, что и панель под музеем */
+    chat(hall,n){const M=L.msgs.filter(m=>!hall||m.hall===hall).slice(-(n||5));
+      return {room:!!L.room,note:L.room?"":NOROOM(),msgs:M.map(m=>({who:m.me?"вы":(m.by&&L.names[m.by])||"гость",me:!!m.me,text:m.text,at:m.at}))}},
+    async say(hall,text){const t=String(text||"").trim().slice(0,300);if(!t)return {ok:false,note:""};if(!L.room)return {ok:false,note:NOROOM()};
+      try{await L.room.emit("hallchat",{hall:String(hall||"").slice(0,40),text:t});return {ok:true}}catch(e){return {ok:false,note:e&&e.code==="not_permitted"?NOPERM:"Сообщение не ушло."}}},
+    sub(f){return on(f)}}}
+const SAY_MS=30000;
+const NOPERM="Писать в чат могут участники, которым автор дал доступ.";
+const NOROOM=()=>L.tried?"Других посетителей видят вошедшие участники сайта. Сейчас вы ходите один.":"Подключаемся…";
 /* панель под музеем: кто здесь и чат зала */
 function panel(host,getHall){init();const box=document.createElement("div");box.className="livepanel";host.after(box);
   const draw=()=>{if(!box.isConnected)return;const P=peers().filter(p=>p.kind==="viewer"&&p.presence&&p.presence.place==="museum");const hall=getHall();
@@ -54,7 +66,7 @@ function panel(host,getHall){init();const box=document.createElement("div");box.
     box.innerHTML=`<div class="lvhead"><b>В музее сейчас: ${P.length}</b></div>${people}<div class="lvhall">${hall?"Чат зала «"+esc(hall)+"»":"Чат музея"}</div><div class="lvlog">${log(M)}</div>
      <form class="trform" id="lvF"><input maxlength="300" placeholder="Сказать тем, кто в этом зале" aria-label="Сообщение в чат зала"><button type="submit">Сказать</button></form><span class="hint" id="lvM"></span><div class="lvdbg"></div>`;box.querySelector(".lvdbg").textContent=dbg();
     box.querySelector("#lvF").onsubmit=async ev=>{ev.preventDefault();const inp=box.querySelector("#lvF input"),t=inp.value.trim();if(!t)return;
-      try{await L.room.emit("hallchat",{hall:getHall()||"",text:t.slice(0,300)});inp.value=""}catch(e){box.querySelector("#lvM").textContent=e&&e.code==="not_permitted"?"Писать в чат могут участники, которым автор дал доступ.":"Сообщение не ушло."}}};
+      try{await L.room.emit("hallchat",{hall:getHall()||"",text:t.slice(0,300)});inp.value=""}catch(e){box.querySelector("#lvM").textContent=e&&e.code==="not_permitted"?NOPERM:"Сообщение не ушло."}}};
   const dbg=()=>{const all=peers();return `связь: ${L.room.connected&&L.room.connected()?"есть":"нет"} · на сайте: ${all.filter(p=>p.kind==="viewer").length} · в музее: ${all.filter(p=>p.presence&&p.presence.place==="museum").length}`};
   const log=M=>M.map(m=>`<div class="lvmsg${m.me?" me":""}"><b>${esc(m.me?"вы":(m.by&&L.names[m.by])||"гость")}</b> ${esc(m.text)}</div>`).join("")||`<div class="hint">Тишина.</div>`;
   draw();const off=on(draw);const t=setInterval(draw,1500);return ()=>{off();clearInterval(t)}}

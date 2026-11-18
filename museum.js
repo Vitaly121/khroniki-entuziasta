@@ -46,7 +46,7 @@ const AIR={
  se:{sky:0xFFE4C6,gnd:0x5C4636,hi:.62,amb:0xFFDCC0,ai:.2,fog:0xD2BCA4,fn:8,ff:48,lc:0xFFDDB4,li:.75,em:.3,lo:[.62,.52,.43],pool:[.42,.32,.2],r:3.2},
  n:{sky:0xFF4A30,gnd:0x100505,hi:.22,amb:0xFF3A20,ai:.06,fog:0x1C0806,fn:5,ff:24,lc:0xFF3A1E,li:.9,em:.55,lo:[.07,.04,.04],pool:[.85,.11,.07],r:4.2},
  kl:{sky:0xFFFFFF,gnd:0x8A7E7A,hi:.95,amb:0xFFF4F0,ai:.3,fog:0xF4ECE8,fn:12,ff:72,lc:0xFFF1EA,li:.85,em:.1,lo:[.9,.88,.88],pool:[.32,.3,.3],r:2.6},
- kr:{sky:0xFFFCF4,gnd:0x8C847A,hi:.92,amb:0xFFF8EE,ai:.28,fog:0xEFEBE3,fn:14,ff:95,lc:0xFFF2DE,li:.8,em:.22,lo:[.92,.85,.78],lo2:[.84,.89,.92],pool:[.26,.25,.24],r:3.4},
+ kr:{sky:0xFFFCF4,gnd:0x8C847A,hi:.92,amb:0xFFF8EE,ai:.28,fog:0xEFEBE3,fn:14,ff:95,lc:0xFFF2DE,li:.8,em:.22,lo:[.92,.85,.78],lo2:[.8,.86,.93],pool:[.26,.25,.24],r:3.4},
  /* «База Героев»: ярко, холодно-белый свет, бодро; акценты — синие светодиодные ленты */
  hb:{sky:0xF2F7FF,gnd:0x2A2E36,hi:.95,amb:0xE6F0FF,ai:.3,fog:0xC6D2E0,fn:14,ff:72,lc:0xEEF6FF,li:.9,em:.2,lo:[.62,.66,.74],pool:[.2,.22,.26],r:3.4}
 };
@@ -67,6 +67,8 @@ const TEX={
  concreteDark:()=>cnv(512,512,(g,w,h)=>{g.fillStyle="#2A2C30";g.fillRect(0,0,w,h);noise(g,w,h,18);g.strokeStyle="rgba(255,255,255,.04)";g.strokeRect(0,0,w,h)}),
  stone:()=>cnv(512,512,(g,w,h)=>{g.fillStyle="#2A2426";g.fillRect(0,0,w,h);noise(g,w,h,22);g.strokeStyle="rgba(0,0,0,.4)";for(let i=0;i<=4;i++){g.beginPath();g.moveTo(i*128,0);g.lineTo(i*128,h);g.stroke();g.beginPath();g.moveTo(0,i*128);g.lineTo(w,i*128);g.stroke()}}),
  tiles:()=>cnv(512,512,(g,w,h)=>{for(let y=0;y<8;y++)for(let x=0;x<8;x++){g.fillStyle=(x+y)%2?"#D9DDE1":"#CDD2D7";g.fillRect(x*64,y*64,64,64)}g.strokeStyle="rgba(0,0,0,.15)";for(let i=0;i<=8;i++){g.beginPath();g.moveTo(i*64,0);g.lineTo(i*64,h);g.moveTo(0,i*64);g.lineTo(w,i*64);g.stroke()}noise(g,w,h,8)}),
+ /* этап 7: облицовка стен супермаркета — светлые панели с тонкими швами и серый цоколь */
+ smwall:()=>cnv(512,512,(g,w,h)=>{g.fillStyle="#DCE2E7";g.fillRect(0,0,w,h);for(let i=0;i<4;i++){const gr=g.createLinearGradient(i*128,0,i*128+128,0);gr.addColorStop(0,"rgba(255,255,255,.35)");gr.addColorStop(1,"rgba(150,160,170,.12)");g.fillStyle=gr;g.fillRect(i*128,0,128,h)}g.fillStyle="rgba(90,100,110,.35)";for(let i=0;i<=4;i++)g.fillRect(i*128-1,0,2,h);noise(g,w,h,4)}),
  smtiles:()=>cnv(512,512,(g,w,h)=>{g.fillStyle="#ECECE8";g.fillRect(0,0,w,h);g.strokeStyle="rgba(0,0,0,.12)";for(let i=0;i<=4;i++){g.beginPath();g.moveTo(i*128,0);g.lineTo(i*128,h);g.moveTo(0,i*128);g.lineTo(w,i*128);g.stroke()}noise(g,w,h,6)}),
  /* этап 6: резиновое покрытие плитами по метру и синий ковролин входной зоны */
  rubber:()=>cnv(256,256,(g,w,h)=>{g.fillStyle="#26272A";g.fillRect(0,0,w,h);noise(g,w,h,16);g.fillStyle="rgba(255,255,255,.05)";for(let i=0;i<420;i++)g.fillRect(Math.random()*w,Math.random()*h,1.5,1.5);g.strokeStyle="rgba(0,0,0,.55)";g.lineWidth=2;g.strokeRect(1,1,w-2,h-2)}),
@@ -109,7 +111,7 @@ const CSS=`.hallwrap .mz-pad{position:absolute;right:16px;bottom:66px;display:no
 .hallwrap.mz-tp .hud .cross{display:none}
 @media (pointer:coarse){.hallwrap .mz-pad{display:flex}.hallwrap.mz .hud .near{bottom:186px;max-width:calc(100% - 32px)}}
 @media (prefers-reduced-motion:reduce){.hallwrap .mz-pad button:active{transform:none}}
-.hallwrap.mz .hud .where{top:calc(12px + var(--mz-top,0px));max-width:calc(100% - 290px)}
+.hallwrap.mz .hud .where{top:calc(12px + var(--mz-top,0px));max-width:calc(100% - 290px);text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 3px rgba(0,0,0,.6),0 1px 12px rgba(0,0,0,.55)}
 .hallwrap .hallbar .mz-branch{border-style:dashed;border-color:rgba(255,255,255,.4)}
 .hallwrap .mz-found{margin-top:4px;font:500 11px/1.3 var(--f-mono,monospace);letter-spacing:.02em;color:#E9EDF0}
 .hallwrap .mz-found b{font-weight:600}
@@ -244,7 +246,38 @@ const CSS=`.hallwrap .mz-pad{position:absolute;right:16px;bottom:66px;display:no
 .mz-auth .mz-ata{width:100%;height:120px;margin-top:10px;background:#0C0E10;color:#C7CED5;border:1px solid rgba(255,255,255,.2);border-radius:8px;font:11px/1.4 var(--f-mono,monospace)}
 .mz-auth .mz-amsg{min-height:1.3em;margin:8px 0 0;font-size:12.5px;color:#9FE6C0}
 .mz-auth .mz-cbtns{flex-wrap:wrap;position:sticky;bottom:-18px;background:#15181C;padding:10px 0 4px}
-@media (max-width:560px),(pointer:coarse){.mz-auth .mz-abts button,.mz-auth .mz-aadd button,.mz-auth select,.mz-auth .mz-aset label{min-height:44px}.mz-auth .mz-abts button{min-width:44px}.mz-auth .mz-ax{min-width:44px;min-height:44px}.mz-auth .mz-alist li{flex-wrap:wrap}.mz-auth .mz-cbtns{bottom:-12px}}`;
+@media (max-width:560px),(pointer:coarse){.mz-auth .mz-abts button,.mz-auth .mz-aadd button,.mz-auth select,.mz-auth .mz-aset label{min-height:44px}.mz-auth .mz-abts button{min-width:44px}.mz-auth .mz-ax{min-width:44px;min-height:44px}.mz-auth .mz-alist li{flex-wrap:wrap}.mz-auth .mz-cbtns{bottom:-12px}}
+/* этап 7: на весь экран */
+.hallwrap .mz-fsb{pointer-events:auto;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(12,14,16,.74);color:#EEF1F3;font:500 12.5px/1.1 var(--f-body,system-ui),sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.hallwrap .mz-fsb svg{width:16px;height:16px;flex:none}
+.hallwrap .mz-fsb[aria-pressed="true"]{background:#EEF1F3;color:#0E1013}
+.hallwrap .mz-fsb:focus-visible{outline:2px solid #E03A1E;outline-offset:2px}
+.hallwrap.mz-full{border-radius:0;width:100%;height:100%}
+.hallwrap.mz-full canvas{height:100%}
+.hallwrap:fullscreen{width:100vw;height:100vh;background:#0B0C0E}
+.hallwrap.mz-fill{position:fixed;inset:0;z-index:900;width:100vw;height:100vh;height:100dvh;overscroll-behavior:contain}
+.hallwrap.mz-fill .hud{top:env(safe-area-inset-top,0px);right:env(safe-area-inset-right,0px);bottom:env(safe-area-inset-bottom,0px);left:env(safe-area-inset-left,0px)}
+.hallwrap .mz-chat{position:absolute;left:12px;top:calc(118px + var(--mz-top,0px));width:min(330px,calc(100% - 290px));display:flex;flex-direction:column;align-items:flex-start;gap:6px;pointer-events:none;font:400 13px/1.35 var(--f-body,system-ui),sans-serif;color:#EEF1F3}
+.hallwrap .mz-chat[hidden]{display:none}
+.hallwrap .mz-chatt{pointer-events:auto;display:flex;align-items:center;gap:6px;min-height:32px;max-width:100%;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(12,14,16,.78);color:#EEF1F3;font:500 12.5px/1.1 var(--f-body,system-ui),sans-serif;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hallwrap .mz-chatt i{font-style:normal;transition:transform .2s}.hallwrap .mz-chat[data-mzc="0"] .mz-chatt i{transform:rotate(-90deg)}
+.hallwrap .mz-chat[data-mzc="0"] .mz-chatb{display:none}
+.hallwrap .mz-chatb{pointer-events:auto;align-self:stretch;background:rgba(12,14,16,.8);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:8px 10px;user-select:text;-webkit-user-select:text}
+.hallwrap .mz-chatl{max-height:132px;overflow:auto;display:grid;gap:3px;margin-bottom:6px;overscroll-behavior:contain}
+.hallwrap .mz-chm{overflow-wrap:anywhere}.hallwrap .mz-chm b{font-weight:600;color:#9EC2F2}.hallwrap .mz-chm.me b{color:#FF8A70}.hallwrap .mz-che{color:#9AA4AC}
+.hallwrap .mz-chatf{display:flex;gap:6px}
+.hallwrap .mz-chatf input{flex:1;min-width:0;min-height:34px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:#0C0E10;color:#EEF1F3;font:inherit;font-size:16px;padding:0 9px}
+.hallwrap .mz-chatf button{min-height:34px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:#EEF1F3;color:#0E1013;font:500 13px var(--f-body,system-ui),sans-serif;cursor:pointer}
+.hallwrap .mz-chatf input:focus-visible,.hallwrap .mz-chatf button:focus-visible,.hallwrap .mz-chatt:focus-visible{outline:2px solid #E03A1E;outline-offset:2px}
+.hallwrap .mz-chatm{margin:4px 0 0;font-size:12px;color:#F2C7A0;min-height:0}.hallwrap .mz-chatm:empty{display:none}
+@media (pointer:coarse){
+.hallwrap .mz-fsb{flex-direction:column;justify-content:center;gap:2px;min-width:50px;min-height:46px;padding:4px 6px;border-radius:14px;font-size:10.5px}
+.hallwrap .mz-chat{left:10px;width:auto;max-width:calc(100% - 96px);top:calc(156px + var(--mz-top,0px))}
+.hallwrap .mz-chat[data-mzc="1"]{right:10px;max-width:none;top:calc(184px + var(--mz-top,0px))}
+.hallwrap .mz-chatt{min-height:44px}
+.hallwrap .mz-chatl{max-height:min(150px,22vh)}
+.hallwrap .mz-chatf input,.hallwrap .mz-chatf button{min-height:44px}}
+@media (pointer:coarse) and (max-height:500px){.hallwrap .mz-chat,.hallwrap .mz-chat[data-mzc="1"]{left:140px;right:auto;max-width:none;width:calc(100% - 366px);top:calc(8px + var(--mz-top,0px))}.hallwrap .mz-chatl{max-height:64px}}`;
 let styleUsers=0;
 function injectStyle(){styleUsers++;if(document.getElementById(STYLE_ID))return;const st=document.createElement("style");st.id=STYLE_ID;st.textContent=CSS;document.head.appendChild(st)}
 function releaseStyle(){styleUsers=Math.max(0,styleUsers-1);if(!styleUsers){const st=document.getElementById(STYLE_ID);if(st)st.remove()}}
@@ -306,7 +339,7 @@ function figKit(T,shadowTex){
 /* ---------- сборка ---------- */
 function mount(host,opt){
   const T=window.THREE;
-  host.innerHTML=`<div class="hallwrap"><canvas tabindex="0" aria-label="Музей: трёхмерные залы"></canvas><div class="hud"><div class="where"><small></small><span></span><div class="mz-found"></div></div><div class="mz-title" role="status" aria-live="polite"></div><div class="keys"><span class="mz-k0">клик — управлять мышью</span><br>WASD, ↑/↓ — идти · ←/→ — повернуть камеру<br>Shift — бег<br>пробел — прыжок · E — рассмотреть<br>лавки и низкие тумбы можно перепрыгнуть<br>V или колесо — вид от 1-го / 3-го лица<br>G — помахать · C — сесть / встать</div><div class="cross"></div><div class="near" hidden></div><div class="stick"><i></i></div><div class="mz-gmenu" data-open="0" role="group" aria-label="Жесты"><button type="button" data-g="wave">помахать</button><button type="button" data-g="sit">сесть</button></div><div class="mz-pad"><button type="button" class="mz-gst" aria-expanded="false" aria-label="Жесты: помахать или сесть"><b><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path d="M4.5 9V4.2a1 1 0 0 1 2 0V8M6.5 7.6V2.6a1 1 0 0 1 2 0v5M8.5 7.6V3.4a1 1 0 0 1 2 0V9M10.5 8.4V5.6a1 1 0 0 1 2 0v3.6c0 3-2 5.3-4.6 5.3-1.9 0-3-1-3.9-2.4L2.4 9.6a1 1 0 0 1 1.6-1.2L4.5 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></b>жест</button><button type="button" class="mz-act" aria-label="Рассмотреть ближайший предмет"><b>◉</b>смотреть</button><button type="button" class="mz-jump" aria-label="Прыжок"><b>↑</b>прыжок</button></div><div class="mz-ctl"><div class="mz-view" role="group" aria-label="Вид камеры"><button type="button" data-v="tp" aria-pressed="true" aria-label="Вид из-за спины"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="10" cy="4" r="2.3" fill="currentColor"/><path d="M6.6 15v-4.3a3.4 3.4 0 0 1 6.8 0V15z" fill="currentColor"/><path d="M1.2 7.5l3 2.2-3 2.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span class="mz-lf">из-за спины</span><span class="mz-ls">сзади</span></button><button type="button" data-v="fp" aria-pressed="false" aria-label="Вид от первого лица"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8s2.6-4.6 7-4.6S15 8 15 8s-2.6 4.6-7 4.6S1 8 1 8z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.3" fill="currentColor"/></svg><span class="mz-lf">от первого лица</span><span class="mz-ls">глазами</span></button></div><button type="button" class="mz-who" aria-label="Персонаж: изменить облик"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="1.5" width="6" height="5.5" rx="1" fill="currentColor"/><path d="M3.5 15v-4.6A2.4 2.4 0 0 1 5.9 8h4.2a2.4 2.4 0 0 1 2.4 2.4V15z" fill="currentColor"/></svg><span>персонаж</span></button><button type="button" class="mz-snd" aria-pressed="true" aria-label="Звук"><svg viewBox="0 0 16 16" aria-hidden="true"></svg><span>звук</span></button><button type="button" class="mz-mus" aria-pressed="true" aria-label="Музыка" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 12.2V3.4l7-1.6v8.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="4.3" cy="12.3" r="1.9" fill="currentColor"/><circle cx="11.3" cy="10.6" r="1.9" fill="currentColor"/></svg><span>музыка</span></button><button type="button" class="mz-auth-b" aria-label="Музыка залов: панель автора" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h8M2 12h5M12 9.5v5M9.5 12h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>музыка залов</span></button><button type="button" class="mz-help" aria-expanded="false" aria-label="Подсказки по управлению">?</button></div><div class="mz-map" data-mz-open="1"><button type="button" class="mz-map-t" aria-expanded="true" aria-label="Карта залов: показать или скрыть">Карта<i aria-hidden="true">▾</i></button><canvas aria-label="Карта залов. Нажмите на зал, чтобы перейти в него" role="img"></canvas></div><div class="mz-np" hidden role="group" aria-label="Сейчас играет"><button type="button" class="mz-npt" aria-expanded="true" aria-label="Сейчас играет: показать или скрыть">♪</button><span class="mz-npn"></span><button type="button" class="mz-npb mz-npp" aria-label="Предыдущий трек">‹</button><button type="button" class="mz-npb mz-npx" aria-label="Следующий трек">›</button></div><div class="hallbar"></div></div>
+  host.innerHTML=`<div class="hallwrap"><canvas tabindex="0" aria-label="Музей: трёхмерные залы"></canvas><div class="hud"><div class="where"><small></small><span></span><div class="mz-found"></div></div><div class="mz-title" role="status" aria-live="polite"></div><div class="keys"><span class="mz-k0">клик — управлять мышью</span><br>WASD, ↑/↓ — идти · ←/→ — повернуть камеру<br>Shift — бег<br>пробел — прыжок · E — рассмотреть<br>лавки и низкие тумбы можно перепрыгнуть<br>V или колесо — вид от 1-го / 3-го лица<br>G — помахать · C — сесть / встать</div><div class="cross"></div><div class="near" hidden></div><div class="stick"><i></i></div><div class="mz-gmenu" data-open="0" role="group" aria-label="Жесты"><button type="button" data-g="wave">помахать</button><button type="button" data-g="sit">сесть</button></div><div class="mz-pad"><button type="button" class="mz-gst" aria-expanded="false" aria-label="Жесты: помахать или сесть"><b><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path d="M4.5 9V4.2a1 1 0 0 1 2 0V8M6.5 7.6V2.6a1 1 0 0 1 2 0v5M8.5 7.6V3.4a1 1 0 0 1 2 0V9M10.5 8.4V5.6a1 1 0 0 1 2 0v3.6c0 3-2 5.3-4.6 5.3-1.9 0-3-1-3.9-2.4L2.4 9.6a1 1 0 0 1 1.6-1.2L4.5 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></b>жест</button><button type="button" class="mz-act" aria-label="Рассмотреть ближайший предмет"><b>◉</b>смотреть</button><button type="button" class="mz-jump" aria-label="Прыжок"><b>↑</b>прыжок</button></div><div class="mz-ctl"><div class="mz-view" role="group" aria-label="Вид камеры"><button type="button" data-v="tp" aria-pressed="true" aria-label="Вид из-за спины"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="10" cy="4" r="2.3" fill="currentColor"/><path d="M6.6 15v-4.3a3.4 3.4 0 0 1 6.8 0V15z" fill="currentColor"/><path d="M1.2 7.5l3 2.2-3 2.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span class="mz-lf">из-за спины</span><span class="mz-ls">сзади</span></button><button type="button" data-v="fp" aria-pressed="false" aria-label="Вид от первого лица"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8s2.6-4.6 7-4.6S15 8 15 8s-2.6 4.6-7 4.6S1 8 1 8z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.3" fill="currentColor"/></svg><span class="mz-lf">от первого лица</span><span class="mz-ls">глазами</span></button></div><button type="button" class="mz-who" aria-label="Персонаж: изменить облик"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="1.5" width="6" height="5.5" rx="1" fill="currentColor"/><path d="M3.5 15v-4.6A2.4 2.4 0 0 1 5.9 8h4.2a2.4 2.4 0 0 1 2.4 2.4V15z" fill="currentColor"/></svg><span>персонаж</span></button><button type="button" class="mz-snd" aria-pressed="true" aria-label="Звук"><svg viewBox="0 0 16 16" aria-hidden="true"></svg><span>звук</span></button><button type="button" class="mz-mus" aria-pressed="true" aria-label="Музыка" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 12.2V3.4l7-1.6v8.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="4.3" cy="12.3" r="1.9" fill="currentColor"/><circle cx="11.3" cy="10.6" r="1.9" fill="currentColor"/></svg><span>музыка</span></button><button type="button" class="mz-auth-b" aria-label="Музыка залов: панель автора" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h8M2 12h5M12 9.5v5M9.5 12h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>музыка залов</span></button><button type="button" class="mz-fsb" aria-pressed="false" aria-label="На весь экран" title="На весь экран (F)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span class="mz-lf">на весь экран</span><span class="mz-ls">экран</span></button><button type="button" class="mz-help" aria-expanded="false" aria-label="Подсказки по управлению">?</button></div><div class="mz-map" data-mz-open="1"><button type="button" class="mz-map-t" aria-expanded="true" aria-label="Карта залов: показать или скрыть">Карта<i aria-hidden="true">▾</i></button><canvas aria-label="Карта залов. Нажмите на зал, чтобы перейти в него" role="img"></canvas></div><div class="mz-np" hidden role="group" aria-label="Сейчас играет"><button type="button" class="mz-npt" aria-expanded="true" aria-label="Сейчас играет: показать или скрыть">♪</button><span class="mz-npn"></span><button type="button" class="mz-npb mz-npp" aria-label="Предыдущий трек">‹</button><button type="button" class="mz-npb mz-npx" aria-label="Следующий трек">›</button></div><div class="hallbar"></div></div>
     <div class="gate"><div><h3>Музей всего дорогого</h3><p>Десять залов анфиладой: от квартир, в которых неуютно, до галереи, которая становится супермаркетом. Предметы ведут в записи.</p><button class="start" type="button">Войти</button></div></div></div>`;
   const wrap=host.querySelector(".hallwrap"),canvas=wrap.querySelector("canvas"),gate=wrap.querySelector(".gate"),hud=wrap.querySelector(".hud");
   const whereEl=hud.querySelector(".where span"),whereSm=hud.querySelector(".where small"),nearEl=hud.querySelector(".near"),bar=hud.querySelector(".hallbar"),stick=hud.querySelector(".stick"),knob=stick.querySelector("i");
@@ -326,7 +359,7 @@ function mount(host,opt){
   function updTop(){topQ=0;if(stopped)return;const rc=wrap.getBoundingClientRect();let hb=0;
     try{const x=Math.max(1,Math.min(innerWidth-2,rc.left+rc.width/2));document.elementsFromPoint(x,1).forEach(el=>{if(wrap.contains(el))return;for(let e=el;e&&e!==document.body&&e!==document.documentElement;e=e.parentElement){const ps=getComputedStyle(e).position;if(ps==="sticky"||ps==="fixed"){hb=Math.max(hb,e.getBoundingClientRect().bottom);break}}})}catch(e){}
     /* сдвиг ограничен, чтобы верхние элементы не наехали на нижние (джойстик, кнопки, полоса залов) */
-    const room=rc.height-(matchMedia("(pointer:coarse)").matches?470:330);const off=Math.round(Math.max(0,Math.min(room,hb-rc.top)));if(off!==updTop.v){updTop.v=off;wrap.style.setProperty("--mz-top",off+"px")}}
+    const room=rc.height-(matchMedia("(pointer:coarse)").matches?470:330);const off=wrap.classList.contains("mz-full")?0:Math.round(Math.max(0,Math.min(room,hb-rc.top)));if(off!==updTop.v){updTop.v=off;wrap.style.setProperty("--mz-top",off+"px")}}
   const qTop=()=>{if(!topQ)topQ=requestAnimationFrame(updTop)};
   on(document,"scroll",qTop,{passive:true,capture:true});on(window,"resize",qTop);stopFns.push(()=>cancelAnimationFrame(topQ));updTop();
   stopFns.push(()=>{[".mz-ctl",".mz-map",".mz-title",".mz-found",".mz-gmenu",".mz-np"].forEach(q=>{const e=hud.querySelector(q);if(e)e.remove()});wrap.classList.remove("mz-keys","mz-lite","mz-gopen");wrap.style.removeProperty("--mz-top")});
@@ -711,7 +744,7 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
       h=HK("ot");h.pools.push({x:4.6,z:h.z1+1.2,r:3.8,w:1.25},{x:0,z:h.z0-6,r:1.7,w:.7});
       h=HK("n");h.pools.push({x:0,z:h.cz,r:4.2,w:1},{x:HW-.6,z:h.cz,r:2.3,w:1,c:[.42,.4,.36],lc:0xEDE8DC});
       box(.46,.14,.26,new T.MeshBasicMaterial({color:0xFF2A12}),0,h.H-.55,h.cz);cyl(.006,.006,.48,mat(0x111111),0,h.H-.24,h.cz,6);
-      h=HK("kr");for(let q=0;q<13;q++)h.pools.push({x:0,z:h.z0-2.5-q*5,r:4.2,w:1});
+      h=HK("kr");for(let q=0;q<13;q++)h.pools.push(q<7?{x:0,z:h.z0-2.5-q*5,r:4.2,w:1}:{x:0,z:h.z0-2.5-q*5,r:4.6,w:1.1,c:[.2,.24,.3],lc:0xEEF6FF});
       /* «База»: сетка потолочных светильников и холодно-синее пятно светодиодов в комнате праздников */
       h=HK("hb");[[10.4,-5],[10.4,-13],[15,-5],[15,-12.5],[19.6,-5],[19.6,-12.5],[24.6,-4.2],[25.4,-12.8]].forEach(([x,zz])=>h.pools.push({x,z:zz,r:3.4,w:1}));
       h.pools.push({x:25.6,z:-12.8,r:2.6,w:.7,c:[.12,.24,.5],lc:0x7FB4FF});
@@ -893,6 +926,14 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
             box(.06,2.8,3.9,mat(0xB9BCC0),s*(HW-.06),1.4,zz)});
           const strip=new T.Mesh(new T.BoxGeometry(.25,.04,3.6),new T.MeshBasicMaterial({color:0xF4F8FF}));strip.position.set(0,h.H-.6,zz);S.add(strip)}}
       const tz=h.z0-L*.52;const tl=new T.Mesh(new T.PlaneGeometry(HW*2,L*.5,sg(HW*2),sg(L*.5)),bmat({map:tex("smtiles","",[4,L*.5/4])}));tl.rotation.x=-Math.PI/2;tl.position.set(0,.01,h.z1+L*.25);S.add(tl);surf.push(tl);
+      /* этап 7: магазинная часть — своя холодная облицовка поверх бордового штофа (стены, торец, потолок) и стальной шов на границе с галереей:
+         без неё после этапа 2 штоф и тёплый свет тянулись до самой кассы, и супермаркет читался как продолжение галереи */
+      {const mz0=h.z0-30.3,mL=mz0-h.z1,HH=h.H,clad=(w,hh,rep)=>bmat({map:tex("smwall","",rep)});
+        [-1,1].forEach(s=>{const m=new T.Mesh(new T.PlaneGeometry(mL,HH,sg(mL),Math.max(4,sg(HH))),clad(mL,HH,[mL/2.4,HH/4.25]));m.rotation.y=s>0?-Math.PI/2:Math.PI/2;m.position.set(s*(HW-.012),HH/2,(mz0+h.z1)/2);m.userData.sm=1;S.add(m);surf.push(m);
+          box(.05,HH,.14,mat(0xAEB6BD),s*(HW-.03),HH/2,mz0)});
+        const e=new T.Mesh(new T.PlaneGeometry(HW*2,HH,sg(HW*2),Math.max(4,sg(HH))),clad(HW*2,HH,[HW*2/2.4,HH/4.25]));e.position.set(0,HH/2,h.z1+.012);e.userData.sm=1;S.add(e);surf.push(e);
+        const c=new T.Mesh(new T.PlaneGeometry(HW*2,mL,sg(HW*2),sg(mL)),bmat({color:0xE4E9EE}));c.rotation.x=Math.PI/2;c.position.set(0,HH-.012,(mz0+h.z1)/2);c.userData.sm=1;S.add(c);surf.push(c);
+        box(HW*2-.1,.3,.05,mat(0xAEB6BD),0,HH-.15,mz0)}
       textPlane(textCanvas("Из колонок — то, что он любил в девять лет","Всё сходится: ни одной сбитой ноты, ни одного места, где кассета жевала.",{w:1000,h:300,ts:44,bs:28,pad:36}),2,.6,0,3.4,tz);
       const cz=h.z1+5;box(1.8,1,.8,mat(0x55606A),2.6,.5,cz-1,true);box(1.8,.04,.8,mat(0x22262B),2.6,1.02,cz-1);
       pick("kr",6).forEach((o,i)=>pedestal(o,-2.2+(i%3)*1.6,cz+1.4+Math.floor(i/3)*1.6))})();
@@ -980,7 +1021,9 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
       if(c==="KeyE"){if(nearObj&&!ev.repeat)activate(nearObj);return}
       if(c==="KeyG"){if(!ev.repeat)doWave();return}
       if(c==="KeyC"){if(!ev.repeat)toggleSit();return}
-      if(c==="KeyV"){if(!ev.repeat)toggleView()}};
+      if(c==="KeyV"){if(!ev.repeat)toggleView();return}
+      if(c==="KeyF"){if(!ev.repeat)FS.toggle();return}
+      if(c==="Escape"&&FS.mode==="fill"&&!locked()){FS.exit()}};
     const ku=ev=>{keys[ev.code]=false};
     on(window,"keydown",kd);on(window,"keyup",ku);
     on(window,"blur",pause);on(document,"visibilitychange",()=>{if(document.hidden)pause()});
@@ -1046,19 +1089,53 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
     const nameTex=n=>new T.CanvasTexture(textCanvas(n,"",{w:512,h:96,ts:44,pad:22,bg:"#141619",fg:"#E9EDF0",font:"Golos Text, sans-serif"}));
     function avatar(p){const lk=lookParse(p.k),g=figure(p.color,lk);g.userData.k=lk?p.k:"";
       const lab=new T.Sprite(new T.SpriteMaterial({map:nameTex(p.name),depthTest:false}));lab.scale.set(.9,.17,1);lab.position.y=1.95;g.add(lab);
-      Object.assign(g.userData,{name:p.name,lab,say:"",bub:null,spd:0});S.add(g);return g}
-    function setSay(a,txt){if(a.userData.say===txt)return;a.userData.say=txt;if(a.userData.bub){a.remove(a.userData.bub);a.userData.bub=null}
-      if(txt){const b=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(textCanvas("",txt.slice(0,90),{w:768,h:192,bs:38,pad:26,bg:"#FFFFFF",fg:"#16191D",font:"Golos Text, sans-serif"})),depthTest:false}));b.scale.set(1.5,.38,1);b.position.y=2.35;a.add(b);a.userData.bub=b}}
+      Object.assign(g.userData,{name:p.name,lab,sayT:"",sayAt:0,spd:0});S.add(g);return g}
+    /* ---------- этап 7: реплики над головой. Последняя фраза посетителя из чата зала висит над его фигурой 30 с от момента, когда сказана
+       (время сообщения — из live.js), последнюю секунду гаснет; новая заменяет старую и запускает отсчёт заново. Своя фраза — над своей фигурой
+       в виде из-за спины. Пузырь всегда к камере, не туманится, сидит над именем; рисуется не больше 12 ближайших. Текстура холста делается
+       только при смене текста и освобождается, когда реплика истекла или посетитель ушёл. Двойники пузырей не получают ---------- */
+    const SAY_MS=30000,BUB_MAX=12,BUB_PX=.0028,BUB_Y=2.12;const BUB={};
+    function bubCanvas(txt){let s_=String(txt).replace(/\s+/g," ").trim();if(s_.length>120){let k=s_.lastIndexOf(" ",119);if(k<90)k=119;s_=s_.slice(0,k).replace(/[\s,.;:—-]+$/,"")+"…"}
+      const MW=620,pad=20,lh=36,font='500 29px "Golos Text", system-ui, sans-serif',c=document.createElement("canvas"),g=c.getContext("2d");g.font=font;
+      const fits=t=>g.measureText(t).width<=MW;const lines=[];let cur="";
+      s_.split(" ").forEach(w=>{const t=cur?cur+" "+w:w;if(fits(t)){cur=t;return}if(cur)lines.push(cur);cur=w;while(!fits(cur)){let k=cur.length-1;while(k>1&&!fits(cur.slice(0,k)))k--;lines.push(cur.slice(0,k));cur=cur.slice(k)}});
+      if(cur)lines.push(cur);if(lines.length>3){lines.length=3;let l=lines[2].replace(/…$/,"");while(l&&!fits(l+"…"))l=l.slice(0,l.lastIndexOf(" ")>8?l.lastIndexOf(" "):l.length-1);lines[2]=l.replace(/[\s,.;:—-]+$/,"")+"…"}
+      const tw=Math.max(...lines.map(l=>g.measureText(l).width)),tail=14,w=Math.ceil(Math.max(96,tw+pad*2))+4,h=lines.length*lh+pad*2-6+tail+4;
+      c.width=w;c.height=h;g.font=font;const r=18,x0=2,y0=2,x1=w-2,y1=h-tail-2;
+      g.beginPath();g.moveTo(x0+r,y0);g.arcTo(x1,y0,x1,y1,r);g.arcTo(x1,y1,x0,y1,r);g.lineTo(w/2+12,y1);g.lineTo(w/2,h-2);g.lineTo(w/2-12,y1);g.arcTo(x0,y1,x0,y0,r);g.arcTo(x0,y0,x1,y0,r);g.closePath();
+      g.fillStyle="#FFFFFF";g.fill();g.lineWidth=2;g.strokeStyle="rgba(20,22,25,.35)";g.stroke();
+      g.fillStyle="#16191D";g.textBaseline="alphabetic";lines.forEach((l,i)=>g.fillText(l,pad+2,pad+2+i*lh+27));
+      return {c,w,h,lines,shown:lines.join(" ")}}
+    function bubDrop(id){const b=BUB[id];if(!b)return;S.remove(b.spr);b.spr.material.map.dispose();b.spr.material.dispose();delete BUB[id]}
+    function bubSet(id,txt,at){let b=BUB[id];const key=txt+"\u0001"+at;if(b&&b.key===key)return b;if(b)bubDrop(id);
+      const bc=bubCanvas(txt),tx=new T.CanvasTexture(bc.c);tx.minFilter=T.LinearFilter;tx.generateMipmaps=false;if(T.sRGBEncoding)tx.encoding=T.sRGBEncoding;
+      const spr=new T.Sprite(new T.SpriteMaterial({map:tx,fog:false,transparent:true,depthWrite:false,toneMapped:false}));spr.center.set(.5,0);spr.renderOrder=6;spr.userData.bub=id;S.add(spr);
+      b=BUB[id]={spr,key,at,w:bc.w*BUB_PX,h:bc.h*BUB_PX,text:bc.shown,lines:bc.lines.length};return b}
+    const bubV=new T.Vector3();
+    function stepBubbles(fp){const now=Date.now(),want=[];
+      Object.keys(AV).forEach(id=>{const a=AV[id],sy=a.userData.sayT,at=a.userData.sayAt;if(sy&&now-at<SAY_MS)want.push({id,g:a,text:sy,at})});
+      const own=opt.multi&&opt.multi.mine?opt.multi.mine():null;if(own&&own.text&&!fp&&me.visible&&now-own.at<SAY_MS)want.push({id:"__me",g:me,text:own.text,at:own.at});
+      want.forEach(w=>{w.d=cam.position.distanceTo(bubV.set(w.g.position.x,w.g.position.y+BUB_Y,w.g.position.z))});want.sort((a,b)=>a.d-b.d);
+      const draw=new Set(want.slice(0,BUB_MAX).filter(w=>w.d<40).map(w=>w.id));
+      /* истёкшие, ушедшие и вытесненные — убрать (текстура освобождается) */
+      Object.keys(BUB).forEach(id=>{if(!draw.has(id))bubDrop(id)});
+      /* размер: строка ≈17 css-пикселей на экране от ~3 до ~12 м (ближе — не крупнее, дальше — мельче) */
+      const tanH=Math.tan(cam.fov*Math.PI/360),ch=Math.max(200,canvas.clientHeight||600);
+      want.forEach(w=>{if(!draw.has(w.id))return;const b=bubSet(w.id,w.text,w.at),k=Math.max(.6,Math.min(4,17*(2*w.d*tanH/ch)/(36*BUB_PX))),age=now-w.at;
+        b.spr.position.set(w.g.position.x,w.g.position.y+BUB_Y,w.g.position.z);b.spr.scale.set(b.w*k,b.h*k,1);b.spr.material.opacity=Math.max(0,Math.min(1,(SAY_MS-age)/1000))})}
+    stopFns.push(()=>Object.keys(BUB).forEach(bubDrop));
     function peersStep(dt,hi,t){const hz=HALLZ[hi];window.__curHall=HN(hz.k);opt.multi.tick(P,window.__curHall);
       const list=opt.multi.others(),seen=new Set();
       list.forEach(p=>{seen.add(p.id);let a=AV[p.id];
         /* облик посетителя (поле k) сменился — фигура пересобирается там же; неверный облик — прежняя фигура по цвету */
-        if(a&&a.userData.k!==(lookParse(p.k)?p.k:"")){const ps=a.position.clone(),ry=a.rotation.y;S.remove(a);a.userData.fig.mats.forEach(m=>m.dispose());a=AV[p.id]=avatar(p);a.position.copy(ps);a.rotation.y=ry}
+        if(a&&a.userData.k!==(lookParse(p.k)?p.k:"")){const ps=a.position.clone(),ry=a.rotation.y,sT=a.userData.sayT,sA=a.userData.sayAt;S.remove(a);a.userData.fig.mats.forEach(m=>m.dispose());a.userData.lab.material.map.dispose();a.userData.lab.material.dispose();a=AV[p.id]=avatar(p);a.position.copy(ps);a.rotation.y=ry;a.userData.sayT=sT;a.userData.sayAt=sA}
         if(!a){a=AV[p.id]=avatar(p);a.position.set(p.x,0,p.z);a.rotation.y=p.yaw||0}
-        if(a.userData.name!==p.name){a.userData.name=p.name;a.userData.lab.material.map=nameTex(p.name);a.userData.lab.material.needsUpdate=true}
+        if(a.userData.name!==p.name){a.userData.name=p.name;a.userData.lab.material.map.dispose();a.userData.lab.material.map=nameTex(p.name);a.userData.lab.material.needsUpdate=true}
         const k=Math.min(1,dt*8),ox=a.position.x,oz=a.position.z;a.position.x+=(p.x-a.position.x)*k;a.position.z+=(p.z-a.position.z)*k;a.rotation.y+=angDiff(a.rotation.y,p.yaw||0)*k;
-        const sp=dt>0?Math.hypot(a.position.x-ox,a.position.z-oz)/dt:0;a.userData.spd+=(Math.min(6,sp)-a.userData.spd)*Math.min(1,dt*6);animFig(a,dt,a.userData.spd,false,t);poseFig(a,dt,gOk(p.g),t);a.userData.g=gOk(p.g);setSay(a,p.say)});
-      Object.keys(AV).forEach(id=>{if(!seen.has(id)){S.remove(AV[id]);AV[id].userData.fig.mats.forEach(m=>m.dispose());delete AV[id]}})}
+        const sp=dt>0?Math.hypot(a.position.x-ox,a.position.z-oz)/dt:0;a.userData.spd+=(Math.min(6,sp)-a.userData.spd)*Math.min(1,dt*6);animFig(a,dt,a.userData.spd,false,t);poseFig(a,dt,gOk(p.g),t);a.userData.g=gOk(p.g);
+        /* реплика: старый live.js не передаёт sayAt — тогда отсчёт идёт с момента, когда фраза впервые пришла */
+        if(p.say!==a.userData.sayT||(p.sayAt&&p.sayAt!==a.userData.sayAt)){a.userData.sayT=p.say||"";a.userData.sayAt=+p.sayAt||Date.now()}});
+      Object.keys(AV).forEach(id=>{if(!seen.has(id)){S.remove(AV[id]);AV[id].userData.fig.mats.forEach(m=>m.dispose());const lb=AV[id].userData.lab;lb.material.map.dispose();lb.material.dispose();delete AV[id];bubDrop(id)}})}
 
     /* ---------- этап 3: двойники книги стоят в залах. Та же фигура, но собранная в три меша (тело, голова, визор),
        холодная подсветка «экрана», ромб над головой, имя вблизи. Разговор — чат сайта (msgs:<ключ>) ---------- */
@@ -1640,7 +1717,10 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
         if(i===0&&bz>0){const d=BASE.xm-xx;if(d<B){const tb=.5*(1-d/B)*bz;if(tb>t){j=IB;t=tb}}}}
       blendAt.r={i,j,t:Math.max(0,Math.min(1,t))};return blendAt.r}
     function airTarget(xx,zz){const {i,j,t}=blendAt(xx,zz);
-      const a=ATG[i],b=ATG[j];["sky","gnd","amb","fog"].forEach(c=>TG[c].copy(a[c]).lerp(b[c],t));["hi","ai","fn","ff"].forEach(c=>TG[c]=a[c]+(b[c]-a[c])*t)}
+      const a=ATG[i],b=ATG[j];["sky","gnd","amb","fog"].forEach(c=>TG[c].copy(a[c]).lerp(b[c],t));["hi","ai","fn","ff"].forEach(c=>TG[c]=a[c]+(b[c]-a[c])*t);
+      /* этап 7: в «Красоте» за галереей — холодный яркий воздух супермаркета */
+      if(i===KRI){const u=ss(HALLZ[i].z0-29,HALLZ[i].z0-37,zz);if(u>0){["sky","gnd","amb","fog"].forEach(c=>TG[c].lerp(MKT[c],u));["hi","ai","fn","ff"].forEach(c=>TG[c]+=(MKT[c]-TG[c])*u)}}}
+    const KRI=HALLZ.findIndex(h=>h.k==="kr"),MKT={sky:new T.Color(0xF4F8FF),gnd:new T.Color(0x8A9098),hi:.9,amb:new T.Color(0xEEF4FF),ai:.28,fog:new T.Color(0xDFE6EC),fn:16,ff:95};
     function stepAir(dt){airTarget(P.x,P.z);const k=airSnap?1:1-Math.exp(-dt*3);airSnap=false;
       ["sky","gnd","amb","fog"].forEach(c=>AC[c].lerp(TG[c],k));["hi","ai","fn","ff"].forEach(c=>AC[c]+=(TG[c]-AC[c])*k);
       hemi.color.copy(AC.sky);hemi.groundColor.copy(AC.gnd);hemi.intensity=AC.hi;amb.color.copy(AC.amb);amb.intensity=AC.ai;
@@ -1740,7 +1820,7 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
       get air(){return{hemi:+hemi.intensity.toFixed(3),hemiSky:"#"+hemi.color.getHexString(),amb:+amb.intensity.toFixed(3),ambColor:"#"+amb.color.getHexString(),fog:"#"+S.fog.color.getHexString(),fogNear:+S.fog.near.toFixed(2),fogFar:+S.fog.far.toFixed(2)}},
       get hall(){return lastHall},get found(){return{n:foundS.size,ids:[...foundS]}},get lite(){return lite},get fps(){return fpsV},get calls(){return calls},get tris(){return R.info.render.triangles},
       get hl(){return{visible:hlRing.visible&&hlMark.visible,id:nearObj?nearObj.userData.id||nearObj.userData.go:null,x:hlRing.position.x,z:hlRing.position.z,n:[hlRing,hlMark].filter(m=>m.visible).length}},
-      get seenRings(){return seenIM.count},get map(){return{open:mapOpen}},AIR,
+      get seenRings(){return seenIM.count},get bubbles(){return Object.keys(BUB).map(id=>{const b=BUB[id],m=b.spr.material;return{id,text:b.text,lines:b.lines,at:b.at,opacity:+m.opacity.toFixed(3),fog:m.fog,depthTest:m.depthTest,visible:b.spr.visible,y:+b.spr.position.y.toFixed(3),sw:+b.spr.scale.x.toFixed(3),sh:+b.spr.scale.y.toFixed(3),tex:m.map.uuid,img:[m.map.image.width,m.map.image.height]}})},get map(){return{open:mapOpen}},AIR,
       get doubles(){return NPC.map(n=>({k:n.k,name:n.name,hall:n.h,x:+n.x.toFixed(2),z:+n.z.toFixed(2),yaw:+n.g.rotation.y.toFixed(3),headYaw:+n.head.rotation.y.toFixed(3),visible:n.g.visible,label:n.lab.visible}))},
       get pose(){const f=me.userData.fig;return{g:gestNow(),sit:+(f.gs||0).toFixed(3),wave:+(f.gw||0).toFixed(3),armRz:+f.armR.rotation.z.toFixed(3),legLx:+f.legL.rotation.x.toFixed(3),bodyY:+f.body.position.y.toFixed(3)}},
       get look(){const f=me.userData.fig;return{look:f.look,top:"#"+f.M.top.color.getHexString(),bot:"#"+f.M.bot.color.getHexString(),hair:f.parts.hair.length,skirt:!!f.parts.skirt,tail:!!f.parts.tail,cap:f.parts.cap.length,k:P.k}},
@@ -1815,10 +1895,68 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
       const touch=coarse.matches;
       if(best!==nearObj||touch!==frame._t){nearObj=best;frame._t=touch;if(bAct)bAct.dataset.on=best?"1":"0";const dbl=!!(best&&best.userData.dbl);setAct(dbl?"talk":"look",dbl?best.userData.label:"");
         if(best){nearEl.hidden=false;nearEl.textContent=dbl?best.userData.label+" · двойник — "+(touch?"кнопка «говорить»":"E, чтобы поговорить"):(best.userData.label||"Предмет")+(best.userData.n?" · запись "+best.userData.n:"")+(touch?" — кнопка «смотреть»":" — E или клик")}else nearEl.hidden=true}
-      if(opt.multi)peersStep(dt,hi,t);
+      if(opt.multi){peersStep(dt,hi,t);stepBubbles(fp)}
       stepHL(t);if(mapOpen&&(mapDirty||now-mapT0>(lite?250:66))){mapT0=now;drawMap()}stepFps(now);
       R.render(S,cam);calls=R.info.render.calls;raf=requestAnimationFrame(frame);
     }
+
+    /* чат зала в полноэкранном виде: последние реплики зала и поле ввода; пишет через тот же канал Live (room.emit("hallchat")) */
+    const chat=(function(){
+      const M=opt.multi,ok=!!(M&&M.chat&&M.say);const el=document.createElement("div");el.className="mz-chat";el.hidden=true;
+      el.innerHTML=`<button type="button" class="mz-chatt" aria-expanded="true" aria-controls="mz-chatb">Чат зала<i aria-hidden="true">▾</i></button><div class="mz-chatb" id="mz-chatb"><div class="mz-chatl" role="log" aria-live="polite"></div><form class="mz-chatf"><input maxlength="300" placeholder="Сказать тем, кто в этом зале" aria-label="Сообщение в чат зала" enterkeyhint="send"><button type="submit">Сказать</button></form><p class="mz-chatm" role="status"></p></div>`;
+      if(ok)hud.appendChild(el);
+      const tg=el.querySelector(".mz-chatt"),lg=el.querySelector(".mz-chatl"),fm=el.querySelector("form"),inp=el.querySelector("input"),msg=el.querySelector(".mz-chatm");
+      let open_=!coarse.matches,iv=0,off_=null,noteT=0,lastH="";
+      const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+      const setOpen=v=>{open_=v;el.dataset.mzc=v?"1":"0";tg.setAttribute("aria-expanded",String(v))};setOpen(open_);
+      const note=t=>{msg.textContent=t||"";clearTimeout(noteT);if(t)noteT=setTimeout(()=>{msg.textContent=""},6000)};
+      function draw(){if(el.hidden||!ok)return;const h=window.__curHall||"";const c=M.chat(h,5);const k=h+"|"+c.msgs.map(m=>m.at+m.text).join("|");if(k===lastH)return;lastH=k;
+        tg.firstChild.textContent=h?"Чат зала «"+h+"»":"Чат музея";
+        lg.innerHTML=c.msgs.map(m=>`<div class="mz-chm${m.me?" me":""}"><b>${esc(m.who)}</b> ${esc(m.text)}</div>`).join("")||`<div class="mz-chm mz-che">Тишина.</div>`;lg.scrollTop=lg.scrollHeight}
+      on(tg,"click",()=>{setOpen(!open_);if(open_)draw()});
+      on(fm,"submit",async ev=>{ev.preventDefault();const t=inp.value.trim();if(!t)return;const r=await M.say(window.__curHall||"",t);if(r&&r.ok){inp.value="";note("")}else note(r&&r.note||"Сообщение не ушло.")});
+      on(inp,"focus",()=>{const c=M.chat(window.__curHall||"",1);if(!c.room)note(c.note||"")});
+      /* клавиши в поле не управляют фигурой (kd пропускает input); Esc — вернуть управление сцене */
+      on(inp,"keydown",ev=>{if(ev.key==="Escape"){ev.preventDefault();inp.blur();try{canvas.focus({preventScroll:true})}catch(e){}}ev.stopPropagation()});
+      on(inp,"keyup",ev=>ev.stopPropagation());
+      return {show(v){if(!ok)return;el.hidden=!v;clearInterval(iv);if(off_){off_();off_=null}if(v){lastH="";draw();iv=setInterval(draw,1500);if(M.sub)off_=M.sub(draw)}else{note("");if(document.activeElement===inp)inp.blur()}},
+        dispose(){clearInterval(iv);clearTimeout(noteT);if(off_)off_();el.remove()},el}
+    })();
+
+    /* ---------- этап 7: «на весь экран». Fullscreen API на .hallwrap; где его нет или он отклонён (iPhone) — заливка окна средствами CSS.
+       Всё, что сайт и музей кладут в body поверх музея (карточка предмета .overlay, просмотр .lbx, лупа, панели «персонаж» и «музыка залов»),
+       на время полноэкранного вида переносится внутрь .hallwrap и возвращается обратно. Чат зала — компактная панель внутри музея ---------- */
+    const FS=(function(){
+      const btn=hud.querySelector(".mz-fsb"),d=document,B=d.body;
+      const fsEl=()=>d.fullscreenElement||d.webkitFullscreenElement||null;
+      const api=!!((wrap.requestFullscreen||wrap.webkitRequestFullscreen)&&(d.fullscreenEnabled||d.webkitFullscreenEnabled));
+      const SEL=".overlay,.lbx,.loupe,.mz-cust";
+      let mode="",scrollY0=0,bodySt=null,mo=null,pendT=0;
+      const move=(n,to)=>{const a=d.activeElement,had=a&&n.contains(a);to.appendChild(n);if(had)try{a.focus({preventScroll:true})}catch(e){}};
+      const adopt=n=>{if(n&&n.nodeType===1&&n.parentNode===B&&n.matches(SEL))move(n,wrap)};
+      function on_(m){mode=m;wrap.classList.add("mz-full");wrap.classList.toggle("mz-fill",m==="fill");btn.setAttribute("aria-pressed","true");
+        [...B.children].forEach(adopt);B.appendChild=function(n){return n&&n.nodeType===1&&n.matches(SEL)?wrap.appendChild(n):Node.prototype.appendChild.call(B,n)};mo=new MutationObserver(rs=>rs.forEach(r=>r.addedNodes.forEach(adopt)));mo.observe(B,{childList:true});
+        chat.show(true);qTop();try{canvas.focus({preventScroll:true})}catch(e){}}
+      function off(){if(!mode)return;const m=mode;mode="";clearTimeout(pendT);if(mo){mo.disconnect();mo=null}if(Object.prototype.hasOwnProperty.call(B,"appendChild"))delete B.appendChild;
+        [...wrap.children].filter(n=>n.matches(SEL)).forEach(n=>move(n,B));
+        wrap.classList.remove("mz-full","mz-fill");btn.setAttribute("aria-pressed","false");chat.show(false);
+        if(m==="fill"&&bodySt){Object.assign(B.style,bodySt);bodySt=null}
+        if(m!=="pending")try{window.scrollTo(0,scrollY0)}catch(e){}qTop()}
+      function fill(){bodySt={position:B.style.position,top:B.style.top,left:B.style.left,right:B.style.right,overflow:B.style.overflow};
+        Object.assign(B.style,{position:"fixed",top:-scrollY0+"px",left:"0",right:"0",overflow:"hidden"});on_("fill")}
+      function enter(){if(mode||stopped)return;scrollY0=window.scrollY||0;
+        if(api){mode="pending";let r;try{r=(wrap.requestFullscreen||wrap.webkitRequestFullscreen).call(wrap,{navigationUI:"hide"})}catch(e){mode="";fill();return}
+          if(r&&r.catch)r.catch(()=>{if(mode==="pending"){mode="";fill()}});
+          pendT=setTimeout(()=>{if(mode==="pending"&&fsEl()!==wrap){mode="";fill()}},1500);return}
+        fill()}
+      function exit(){if(mode==="fill"){off();return}if(mode){const f=fsEl();if(f&&wrap.contains(f)){try{const r=(d.exitFullscreen||d.webkitExitFullscreen).call(d);if(r&&r.catch)r.catch(()=>off())}catch(e){off()}}else off()}}
+      const onChange=()=>{const f=fsEl();if(f&&wrap.contains(f)){if(mode!=="api"){clearTimeout(pendT);const y=scrollY0;on_("api");scrollY0=y}}else if(mode==="api"||mode==="pending")off()};
+      on(d,"fullscreenchange",onChange);on(d,"webkitfullscreenchange",onChange);
+      on(btn,"click",()=>{mode?exit():enter()});
+      stopFns.push(()=>{const f=fsEl();if(mode&&f&&wrap.contains(f))try{(d.exitFullscreen||d.webkitExitFullscreen).call(d)}catch(e){}off();chat.dispose()});
+      return {toggle(){mode?exit():enter()},exit,get mode(){return mode},get api(){return api}};
+    })();
+    canvas.__mz.fs=FS;canvas.__mz.chat=chat;
     hint0();syncView();raf=requestAnimationFrame(frame);
   }
   return function stop(){if(stopped)return;if(opt.multi)opt.multi.leave();stopped=true;cancelAnimationFrame(raf);stopFns.splice(0).forEach(f=>{try{f()}catch(e){}});try{if(R){R.dispose();R.forceContextLoss&&R.forceContextLoss()}}catch(e){}};
