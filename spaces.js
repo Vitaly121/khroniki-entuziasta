@@ -134,11 +134,12 @@ async function floorSection(k,host){css();if(!B()||!host)return;let sec=host.que
   sec.dataset.floor=k;const m=await me();
   const draw=(rows,err)=>{if(!sec.isConnected)return;const n=rows?rows.length:0;
     sec.innerHTML=`<div class="flsec"><h3 id="spSecH">Пространства посетителей${rows?" · "+n:""}</h3><span class="hint">Комнаты, которые собрали читатели на этаже ${flab(k)}. Появляются после одобрения автором сайта.</span></div>
-     <div class="sptools">${m.id?`<button type="button" class="spb" id="spAdd">Добавить своё пространство</button><button type="button" class="spb gh" id="spMine">Мои пространства</button>`:`<button type="button" class="spb" id="spLogin">Войдите, чтобы добавить</button>`}
+     <div class="sptools"><button type="button" class="spb" id="spWalk">Пройти по этажу</button>${m.id?`<button type="button" class="spb" id="spAdd">Добавить своё пространство</button><button type="button" class="spb gh" id="spMine">Мои пространства</button>`:`<button type="button" class="spb" id="spLogin">Войдите, чтобы добавить</button>`}
       ${m.owner?`<button type="button" class="spb gh" id="spRev">Заявки на пространства${pendN!=null?" · "+pendN:""}</button>`:""}<span class="spmsg" id="spMsg" role="status"></span></div>
      ${err?`<p class="spmsg err">${esc(msg(err))}</p>`:!rows?`<p class="sphint">Загружаем…</p>`:n?`<div class="spgrid">${rows.map(s=>spaceCard(s)).join("")}</div>`:`<p class="sphint">Здесь пока нет пространств. Добавьте своё.</p>`}`;
     wireCards(sec);const q=id=>sec.querySelector(id);
     if(q("#spLogin"))q("#spLogin").onclick=()=>window.Backend.login();
+    if(q("#spWalk"))q("#spWalk").onclick=()=>nav3d(k);
     if(q("#spMine"))q("#spMine").onclick=()=>nav("spaces-mine");
     if(q("#spRev"))q("#spRev").onclick=()=>nav("spaces-review");
     if(q("#spAdd"))q("#spAdd").onclick=()=>startNew(k,q("#spMsg"),q("#spAdd"))};
@@ -170,7 +171,8 @@ function route(h){h=String(h||"");if(!B()){A().go("home");return}
   if(h==="objs-all")return pageObjs();
   let m=h.match(/^space-new-(551|43|17|-1)$/);if(m)return editor(null,m[1]);
   m=h.match(/^space-edit-([0-9a-f-]{36})$/);if(m)return editor(m[1]);
-  m=h.match(/^space-([0-9a-f-]{36})$/);if(m)return preview(m[1]);
+  m=h.match(/^space-plan-([0-9a-f-]{36})$/);if(m)return preview(m[1]);
+  m=h.match(/^space-([0-9a-f-]{36})$/);if(m)return enterSpace(m[1]);
   A().go("home")}
 
 /* ---------- мои пространства ---------- */
@@ -321,7 +323,7 @@ async function preview(id){const v=page("museum",`<div id="spBody"><p class="sph
    ${s.canEdit?`<div class="spstat"><div><b>Статус:</b> ${statusChip(s.status)}</div>${s.note?`<p class="spnote"><b>Замечание автора сайта:</b> ${esc(s.note)}</p>`:""}<div class="sptools"><button type="button" class="spb" data-sp-edit="${esc(s.id)}">Изменить</button></div></div>`:""}
    ${s.descr?`<p style="max-width:640px;line-height:1.6;overflow-wrap:anywhere">${esc(s.descr)}</p>`:""}
    <div class="sptools"><button type="button" class="spb gh" id="spBack">${esc("К этажу "+flab(s.floor))}</button></div>
-   <p class="sphint">План комнаты: пол в центре, вокруг стены. Пройти по ней в 3D можно будет позже.</p><div id="spFold"></div>
+   <p class="sphint">План комнаты: пол в центре, вокруг стены.</p><div class="sptools"><button type="button" class="spb" data-sp-enter="${esc(s.id)}">Войти в 3D</button></div><div id="spFold"></div>
    <div class="flsec"><h3>Предметы · ${s.objects.length}</h3></div>
    ${s.objects.length?`<div class="spgrid">${s.objects.map(o=>`<article class="spcard"><img class="cov" alt="${esc(o.name)}" loading="lazy" src="${o.img?esc(B().url(o.img)):placeholder(o.name)}"><div class="bd"><span class="spmeta">${o.place.kind==="ped"?"на постаменте":"на стене"}</span><h3>${esc(o.name)}</h3>${o.descr?`<p>${esc(o.descr)}</p>`:""}${o.img?`<div class="sptools"><button type="button" class="spb gh sm" data-full="${esc(o.id)}">Изображение на весь экран</button></div>`:""}</div></article>`).join("")}</div>`:`<p class="sphint">Предметов пока нет.</p>`}`;
   wireCards(body);const el=body.querySelector("#spFold");el.innerHTML=foldHTML(s.room,Math.min(560,el.clientWidth||320));
@@ -428,5 +430,34 @@ async function cardHook(ov,o){const m=await me();if(!m.owner||!ov.isConnected)re
   const b=document.createElement("button");b.type="button";b.className="x";b.dataset.spoe="1";b.textContent="изменить";b.style.cssText="margin:-10px 10px -10px auto;min-height:44px;min-width:44px;padding:0 8px;color:var(--stamp);font-weight:600";b.setAttribute("aria-label","Изменить предмет: "+o.name);
   b.onclick=ev=>{ev.stopPropagation();ov.remove();objEditor(o.id)};head.insertBefore(b,head.querySelector(".x"))}
 
-return {route,floorHook,museumHook,clubHook,cardHook,objEditor,nav,_cache:LC};
+/* ---------- этап 8, часть 2: 3D — этаж посетителей (коридор с дверями), комнаты, лифт, карточка предмета ---------- */
+function nav3d(floor,id){floor=String(floor);const h=id?"space-"+id:"floor-"+(floor==="-1"?"m1":floor)+"/3d";try{if(location.hash!=="#"+h)history.pushState(null,"","#"+h)}catch(e){}return world3d(floor,id||null)}
+function liftGo(t){t=String(t||"");if(t==="book"){A().go("museum");return}if(FL_ORDER.indexOf(t)>=0)nav3d(t)}
+async function enterSpace(id){const v=page("museum",`<div id="spBody"><p class="sphint">Загружаем…</p></div>`);let s;
+  try{s=await B().get(id)}catch(e){const b=v.querySelector("#spBody");if(b&&b.isConnected){b.innerHTML=`<div class="page-head"><div class="eyebrow">Пространства посетителей</div><h2>Не найдено</h2></div><p class="spmsg err" role="alert">${esc(e.code==="not_found"?"Пространство не найдено, ещё на проверке или скрыто. Войти в него могут только автор и автор сайта.":msg(e))}</p><div class="sptools"><button type="button" class="spb gh" id="spHome">На главную</button></div>`;b.querySelector("#spHome").onclick=()=>A().go("home")}return}
+  if(!v.isConnected||!(location.hash==="#space-"+id))return;return world3d(s.floor,id,s)}
+async function world3d(floor,enterId,pre){floor=String(floor);const app=A();if(!B())return;
+  const v=page("museum",`<div class="page-head"><div class="eyebrow">${esc(flName(floor))} · пространства посетителей · 3D</div><h2 id="w3h">${esc(pre?pre.title:"Пройти по этажу")}</h2><div class="sub">Коридор с дверями: за каждой — комната посетителя. Лифт в лобби везёт на другие этажи и в музей книги.</div></div>
+   <div class="sptools"><button type="button" class="spb gh" id="w3back">${esc(floor==="-1"?"К музею книги":"К странице этажа "+flab(floor))}</button>${enterId?`<button type="button" class="spb gh" id="w3plan">План и список предметов</button>`:""}<span class="spmsg" id="w3msg" role="status"></span></div><div id="w3"><p class="sphint">Загружаем этаж…</p></div>`);
+  const host=v.querySelector("#w3");v.querySelector("#w3back").onclick=()=>app.go(floor==="-1"?"museum":"floor:"+floor);
+  if(enterId)v.querySelector("#w3plan").onclick=()=>nav("space-plan-"+enterId);
+  let rows;try{rows=await B().world(floor)}catch(e){if(host.isConnected)host.innerHTML=`<p class="spmsg err" role="alert">${esc(msg(e))}</p>`;return}
+  if(enterId&&!rows.some(x=>x.id===enterId)){try{const s=pre||await B().get(enterId);if(s&&s.floor===floor)rows.push(s)}catch(e){}}
+  if(!host.isConnected)return;
+  if(!window.Museum){host.innerHTML=`<p class="sphint">Модуль музея не загрузился.</p>`;return}
+  host.innerHTML="";const stop=Museum.mount(host,{world:{floor,spaces:rows,enter:enterId||null,url:p=>B().url(p),onObj:(s,o,op)=>objCard(s,o,op),onLift:t=>liftGo(t),
+      save:(s,o,place)=>B().place(o.id,place).then(r=>{dropCache();return r}),msg:e=>msg(e)},texUrl:app.texUrl||null,multi:window.Live?Live.museum():null});
+  app.cleanup().push(stop);if(window.Live){const off=Live.panel(host,()=>window.__curHall||"",()=>window.__curHallName||"");app.cleanup().push(off)}
+  window.__w3={floor,n:rows.length,enter:enterId||null}}
+/* карточка предмета пространства: название, описание, изображение (на весь экран — просмотрщик сайта), пространство и автор */
+function objCard(s,o,opener){css();document.querySelectorAll(".overlay").forEach(x=>x.remove());const url=o.img?B().url(o.img):"";
+  const ov=document.createElement("div");ov.className="overlay";
+  ov.innerHTML=`<div class="card spocard" role="dialog" aria-modal="true" aria-label="${esc(o.name)}"><div class="phw"><img class="ph" alt="${esc(o.name)}" src="${url?esc(url):placeholder(o.name)}">${url?`<button type="button" class="phx" aria-label="${esc("Открыть изображение на весь экран: "+o.name)}">на весь экран</button>`:""}</div>
+   <div class="head"><span>${esc(o.place&&o.place.kind==="ped"?"Предмет на постаменте":"Картина на стене")}</span><button class="x" type="button">закрыть ✕</button></div>
+   <dl><dt>Предмет</dt><dd>${esc(o.name)}</dd>${o.descr?`<dt>Описание</dt><dd style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(o.descr)}</dd>`:""}<dt>Пространство</dt><dd>${esc(s.title)}</dd><dt>Автор</dt><dd>${esc(s.author||"посетитель")}</dd></dl></div>`;
+  document.body.appendChild(ov);const close=()=>{ov.remove();if(opener&&opener.isConnected)try{opener.focus({preventScroll:true})}catch(e){}};
+  ov.addEventListener("click",ev=>{if(ev.target===ov||ev.target.closest(".x"))close()});ov.addEventListener("keydown",ev=>{if(ev.key==="Escape"){ev.preventDefault();close()}ev.stopPropagation()});
+  if(url){const full=()=>A().lightbox(url,o.name,ov.querySelector(".phx"));ov.querySelector(".phx").onclick=full;ov.querySelector(".ph").onclick=full}
+  ov.querySelector(".x").focus()}
+return {route,floorHook,museumHook,clubHook,cardHook,objEditor,nav,_cache:LC,world3d,liftGo,nav3d,enterSpace,objCard};
 })();

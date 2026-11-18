@@ -249,6 +249,19 @@ const spaces={
   async reorder(space,ids){await spNeedMe();const sb=await client();
     const cur=await spRun(sb.from("space_objects").select("id,sort").eq("space",String(space)));const by={};(cur||[]).forEach(o=>by[o.id]=o.sort);
     for(let i=0;i<ids.length;i++){if(by[ids[i]]===i)continue;const d=await spRun(sb.from("space_objects").update({sort:i}).eq("id",ids[i]).select("id"));if(!d||!d.length)throw spFail("not_permitted")}return true},
+  /* часть 2: всё для 3D-этажа — одобренные пространства этажа и свои (любого статуса), с предметами; порядок — по времени создания */
+  async world(floor){floor=String(floor);if(SP_FLOORS.indexOf(floor)<0)throw spFail("invalid");const sb=await client();const me=await spMe();
+    const pub=await spRun(sb.from("spaces").select(SP_COLS).eq("floor",floor).eq("status","approved").order("created_at",{ascending:true}).limit(200));
+    const own=me.id?await spRun(sb.from("spaces").select(SP_COLS).eq("floor",floor).eq("owner",me.id).order("created_at",{ascending:true})):[];
+    const by=new Map();(pub||[]).concat(own||[]).forEach(r=>by.set(r.id,r));
+    const rows=(await spDecorate([...by.values()])).sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||""))||String(a.id).localeCompare(String(b.id)));
+    if(!rows.length)return [];
+    const objs=await spRun(sb.from("space_objects").select(OB_COLS).in("space",rows.map(r=>r.id)));const os={};
+    (objs||[]).forEach(o=>(os[o.space]=os[o.space]||[]).push(Object.assign({},o,{place:spPlace(o.place),url:spUrl(o.img)})));
+    return rows.map(s=>Object.assign(s,{objects:(os[s.id]||[]).sort((a,b)=>(a.sort-b.sort)||String(a.id).localeCompare(String(b.id))),mine:!!me.id&&s.owner===me.id,canEdit:(!!me.id&&s.owner===me.id)||me.owner}))},
+  /* часть 2: расстановка в 3D — записать place предмета и вернуть статус пространства (база сама возвращает на проверку) */
+  async place(id,place){const o=await spaces.updateObject(id,{place});const sb=await client();
+    const s=await spRun(sb.from("spaces").select("id,status").eq("id",o.space).limit(1));return {obj:Object.assign({},o,{place:spPlace(o.place)}),status:s&&s[0]?s[0].status:""}},
   uploadImage:spUpload,removeImages:spRemoveFiles,prepareImage:spPrepare,
   /* модерация: база пускает только админов, интерфейс лишь отражает */
   async review(status){const me=await spNeedMe();if(!me.owner)throw spFail("not_permitted");const sb=await client();
@@ -270,7 +283,13 @@ const objEdits={
     const d=await spRun(ex&&ex.length?sb.from("obj_edits").update({data,updated_by:me.id,updated_at:new Date().toISOString()}).eq("id",id).select("id,data"):sb.from("obj_edits").insert({id,data,updated_by:me.id}).select("id,data"));
     if(!d||!d.length)throw spFail("not_permitted");oeP=null;return d[0]},
   async remove(id){const me=await spNeedMe();if(!me.owner)throw spFail("not_permitted");const sb=await client();
-    const d=await spRun(sb.from("obj_edits").delete().eq("id",String(id)).select("id"));oeP=null;return {id:String(id),removed:(d||[]).length}}
+    const d=await spRun(sb.from("obj_edits").delete().eq("id",String(id)).select("id"));oeP=null;return {id:String(id),removed:(d||[]).length}},
+  /* часть 2: место предмета книги в 3D-музее (data.pos); pos=null — вернуть автоматическое; остальные правки сохраняются */
+  async setPos(id,pos){const me=await spNeedMe();if(!me.owner)throw spFail("not_permitted");id=String(id);const sb=await client();
+    const cur=await spRun(sb.from("obj_edits").select("id,data").eq("id",id).limit(1));const data=Object.assign({},cur&&cur[0]&&cur[0].data||{});
+    if(pos&&isFinite(+pos.x)&&isFinite(+pos.z)&&typeof pos.h==="string")data.pos={h:pos.h.slice(0,4),x:+(+pos.x).toFixed(2),z:+(+pos.z).toFixed(2),r:isFinite(+pos.r)?Math.round(+pos.r)%360:0};else delete data.pos;
+    if(!Object.keys(data).length){if(cur&&cur.length)await objEdits.remove(id);oeP=null;return {id,data:null}}
+    const r=await objEdits.save(id,data);return {id,data:r.data}}
 };
 window.Backend={login,logout,configured:true,guest:!hasSes,spaces,objEdits};
 /* кнопка «Войти» в шапке и в подсказках открывает окно входа, а не Claude */

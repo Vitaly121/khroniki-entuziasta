@@ -25,10 +25,10 @@ function cleanEdit(e){if(!e||typeof e!=="object")return null;const o={};
   return Object.keys(o).length?o:null}
 function applyEdits(map){map=map||{};OBJ_EDITS={};Object.keys(EDIMG).forEach(k=>delete EDIMG[k]);const list=[];
   OBJ_ORIG.forEach(o0=>{const e=cleanEdit(map[o0.id]);const o=Object.assign({},o0);
-    if(e&&!e.new){OBJ_EDITS[o0.id]=e;["name","ret","n","h"].forEach(k=>{if(k in e)o[k]=e[k]});if(e.img)EDIMG[o.id]=Backend.objEdits.url(e.img);o._ed=true;if(e.h&&e.h!==o0.h)o._fresh=true;if(e.hide)o._hide=true}
+    if(e&&!e.new){OBJ_EDITS[o0.id]=e;["name","ret","n","h"].forEach(k=>{if(k in e)o[k]=e[k]});if(e.img)EDIMG[o.id]=Backend.objEdits.url(e.img);o._ed=true;if(e.h&&e.h!==o0.h)o._fresh=true;if(e.hide)o._hide=true;if(e.pos)o.pos=e.pos}
     list.push(o)});
   Object.keys(map).forEach(id=>{if(ORIGBY[id]||!/^x[a-z0-9]{3,38}$/.test(id))return;const e=cleanEdit(map[id]);if(!e||!e.new||!e.name||!e.h)return;OBJ_EDITS[id]=e;
-    const o={id,name:e.name,ret:e.ret||"",n:e.n||ORDER[0],h:e.h,to:[],_new:true,_fresh:true,_ed:true};if(e.img)EDIMG[id]=Backend.objEdits.url(e.img);if(e.hide)o._hide=true;list.push(o)});
+    const o={id,name:e.name,ret:e.ret||"",n:e.n||ORDER[0],h:e.h,to:[],_new:true,_fresh:true,_ed:true};if(e.pos)o.pos=e.pos;if(e.img)EDIMG[id]=Backend.objEdits.url(e.img);if(e.hide)o._hide=true;list.push(o)});
   OBJ_ALL.length=0;OBJS.length=0;list.forEach(o=>{OBJ_ALL.push(o);if(!o._hide)OBJS.push(o)});
   Object.keys(OBJBY).forEach(k=>delete OBJBY[k]);OBJS.forEach(o=>OBJBY[o.id]=o);
   Object.keys(OBJ_OF).forEach(k=>delete OBJ_OF[k]);OBJS.forEach(o=>(OBJ_OF[o.n]=OBJ_OF[o.n]||[]).push(o));
@@ -395,6 +395,7 @@ const FEED=(window.BOOKDATA.feed||[]);
 function ytq(s){const m=String(s).match(/([A-ZА-ЯЁ0-9][^«»;.]{1,48}?)[\s,—–-]*«([^»]{1,60})»/);return m?"https://www.youtube.com/results?search_query="+encodeURIComponent(m[1].replace(/^(В|На|Из|По|Затем|затем)\s+[^—]*?—\s*/,"").trim()+" "+m[2]):null}
 function postCard(p,full){const lnk=p.ig.map((u,i)=>`<a href="${esc(u)}" target="_blank" rel="noopener">пост ${i+1}</a>`).join(" · ");
   return `<article class="igpost"><div class="ighead"><span class="igava">${p.who.includes("Valentina")?"V":p.who.includes("N")?"N":"V"}</span><b>${esc(p.who)}</b><span>№ ${p.no} · ${esc(p.date)}</span></div>
+   <button type="button" class="igimgb" data-lb="img/posts/post${String(p.no).padStart(2,"0")}.webp" data-alt="${esc(p.hook)}" aria-label="${esc("Увеличить иллюстрацию к посту № "+p.no)}"><img class="igimg" loading="lazy" decoding="async" width="720" height="900" src="img/posts/post${String(p.no).padStart(2,"0")}.webp" alt="${esc("Иллюстрация к посту № "+p.no+": "+p.hook)}" onerror="this.parentNode.remove()"></button>
    <p class="ighook">${esc(p.hook)}</p>${p.fact&&p.fact!=="—"?`<p class="igfact">${esc(p.fact)}</p>`:""}${p.next&&p.next!=="—"?`<p class="ignext">${esc(p.next)}</p>`:""}
    ${lnk?`<p class="igreal">Реальные посты на ту же тему: ${lnk}</p>`:""}
    ${full&&p.n?`<details class="ighid"><summary>Чего в посте нет</summary><p>${esc(p.hidden)}</p><button type="button" class="lnk" data-open="${p.n}">${lab(p.n)} · ${esc(BY[p.n]?BY[p.n].t:"")} →</button></details>`:""}
@@ -692,7 +693,7 @@ const CHATS={
    <div class="b">пап, ты спишь?<span class="meta">01:58 · не отправлено</span></div>
    <div class="day">май 2028 · <button type="button" class="lnk" data-open="141">141</button> · <button type="button" class="lnk" data-open="142">142</button></div>
    <div class="b call">Сводка: «Lina-Alexandra — сообщение, фото. Ожидает ответа. Ответ копией запрещён»</div>
-   <div class="b"><i>фото</i> · про школу, окно её комнаты; свет другой<span class="meta">четверг</span></div>
+   <div class="b photo"><span class="ph" role="img" aria-label="Фото: окно её комнаты, свет другой, школьный рюкзак у подоконника" style="background-image:url(img/f03.webp)"></span><span class="meta">четверг · <i>фото</i> · про школу, окно её комнаты; свет другой</span></div>
    <div class="b">ты там?<span class="meta">суббота, рано</span></div>
    <div class="b me">как контрольная?<span class="meta">понедельник, утро <span class="tk">✓✓</span></span></div>
    <div class="b call">Контрольной нет, в мае ни одной, писала в апреле. Не переспросил. Ответил сам. Ответил поздно</div>`},
@@ -748,7 +749,7 @@ const CHATS={
    <div class="b">Ходили с девочками к воде. До вечера<span class="meta">20:15</span></div>
    <div class="b call">Видеозвонок · 6 мин · Маша, Vera</div>
    <div class="b me bycopy">Мне было хорошо с вами сегодня. Я не хотел, чтобы день кончался<span class="meta">22:02 · предложено копией <span class="tk">✓✓</span></span></div>
-   <div class="b"><i>фото</i> · Vera рисует улитку<span class="meta">22:09</span></div>
+   <div class="b photo"><span class="ph" role="img" aria-label="Фото: Vera рисует фломастером улитку" style="background-image:url(img/f04.webp)"></span><span class="meta">22:09 · <i>фото</i> · Vera рисует улитку</span></div>
    <div class="day">сентябрь 2027 · день рождения Lina-Alexandra</div>
    <div class="b">не забудь, ей в полночь шестнадцать<span class="meta">14:02</span></div>
    <div class="b call">Видеозвонок · на следующий день · 2 мин</div>
@@ -869,7 +870,7 @@ const CHATS={
    <div class="day">9 сентября 2027</div>
    <div class="b">Вить, давай ты не будешь<span class="meta">12:30</span></div>
    <div class="day">сентябрь 2027</div>
-   <div class="b"><i>фото без подписи</i> · сын с игрушечным сундуком<span class="meta">18:02</span></div>
+   <div class="b photo"><span class="ph" role="img" aria-label="Фото без подписи: мальчик со спины держит игрушечный сундук" style="background-image:url(img/f05.webp)"></span><span class="meta">18:02 · <i>фото без подписи</i> · сын с игрушечным сундуком</span></div>
    <div class="day">май 2028</div><div class="b">Про сундук. Ты всё-таки?<span class="meta">18:03</span></div><div class="b me">нет<span class="meta">18:40 <span class="tk">✓✓</span></span></div>`},
 
  club:{name:"Клуб энтузиастов · среды",ava:"К",time:"апр.",sub:"Джош: Спасибо, Viktor, за формулировку",pinned:`<b>Закреплено · обещания «Океана»</b><br><span style="color:var(--muted)">Рабочие сроки, не гарантия</span>
@@ -1170,7 +1171,8 @@ function lightbox(src,caption,opener){
     if(document.fullscreenElement===el)try{document.exitFullscreen().catch(()=>{})}catch(e){}el.remove();LBX=null;if(opener&&opener.isConnected)try{opener.focus({preventScroll:true})}catch(e){}}
   el.querySelector(".lbx-x").focus({preventScroll:true});
   LBX={close,el,get state(){return{s:+V.s.toFixed(4),fit:+V.fit.toFixed(4),tx:+V.tx.toFixed(1),ty:+V.ty.toFixed(1),nw:V.nw,nh:V.nh,ok:V.ok,src:img.getAttribute("src"),transform:img.style.transform,err:!el.querySelector(".lbx-err").hidden}}};return LBX}
-window.__lightbox=()=>LBX;
+/* этап 8, часть 2: window.__lightbox(src, подпись, opener) открывает просмотрщик сайта (им пользуется музей); без аргументов — как раньше, текущее состояние */
+window.__lightbox=function(src,caption,opener){if(typeof src==="string"&&src)lightbox(src,String(caption||""),opener||null);return LBX};
 let musTab="",catHall="all",catQ="",catN=60;
 function showObj(id){
   const o=OBJBY[id];if(!o)return;const e=BY[o.n];
@@ -1212,7 +1214,10 @@ function showMuseum(tab){
     draw();m.querySelectorAll("[data-ch]").forEach(b=>b.onclick=()=>{catHall=b.dataset.ch;catN=60;m.querySelectorAll("[data-ch]").forEach(x=>x.setAttribute("aria-pressed",x===b));draw()});
     $("#cq").oninput=ev=>{catQ=ev.target.value;catN=60;draw()};
   } else {
-    if(window.Museum){const stop=Museum.mount(m,{objs:OBJS,book:BY,halls:HALLS,thumb:objThumb,photo:id=>imgOf(id),paint:PAINT,texUrl:n=>TEXIMG.has(n)?`img/tx_${n}.webp`:null,onObj:id=>showObj(id),onOpen:n=>openUnit(n),multi:window.Live?Live.museum():null});cleanup.push(stop);if(window.Live){const off=Live.panel(m,()=>window.__curHall||"");cleanup.push(off)}}
+    if(window.Museum){const stop=Museum.mount(m,{objs:OBJS,book:BY,halls:HALLS,thumb:objThumb,photo:id=>imgOf(id),paint:PAINT,texUrl:n=>TEXIMG.has(n)?`img/tx_${n}.webp`:null,onObj:id=>showObj(id),onOpen:n=>openUnit(n),multi:window.Live?Live.museum():null,
+      /* этап 8, часть 2: лифт на этажи посетителей и расстановка предметов автором сайта (только при подключённом сервере) */
+      lift:window.Backend&&Backend.spaces?{go:t=>withSpaces(S=>S.liftGo&&S.liftGo(t))}:null,
+      placeBook:window.Backend&&Backend.objEdits?{can:()=>Backend.spaces.me().then(m=>!!m.owner).catch(()=>false),save:(id,pos)=>Backend.objEdits.setPos(id,pos).then(r=>{const o=OBJBY[id];if(o){if(pos)o.pos=r.data&&r.data.pos;else delete o.pos}if(r.data)OBJ_EDITS[id]=r.data;else delete OBJ_EDITS[id];return r}),msg:e=>Backend.spaces.message(e)}:null});cleanup.push(stop);if(window.Live){const off=Live.panel(m,()=>window.__curHall||"");cleanup.push(off)}}
     else m.innerHTML=`<p class="hint">Модуль музея не загрузился.</p>`;
   }
 }
@@ -1285,6 +1290,7 @@ window.__goMsgs=v=>go(v);
 /* адреса разделов: #meaning, #msgs:n, #e12 — ими можно делиться, работает «Назад» */
 let _routing=false;
 function setHash(h){if(_routing)return;const cur=(location.hash||"").slice(1);if(cur===h)return;try{history.pushState(null,"",h?"#"+h:location.pathname+location.search)}catch(e){}}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-lb]");if(b&&typeof lightbox==="function"){e.preventDefault();lightbox(b.dataset.lb,b.dataset.alt||"",b)}});
 const VIEWS=["feed","voices","map","msgs","media","museum","floor","tally","posts","club","meaning","search","home"];
 function route(h){_routing=true;try{
   if(!h||h==="home")showHome();
@@ -1320,7 +1326,7 @@ const TEXT=new Promise(res=>{if(window.BOOKTEXT)return res();const s=document.cr
   .then(()=>{const T=window.BOOKTEXT||{},X=window.BOOKX||{};BOOK.forEach(e=>{if(T[e.n])e.seg=T[e.n];if(X[e.n])Object.assign(e,X[e.n])});window.__textReady=true;document.dispatchEvent(new Event("textready"))});
 function whenText(fn){return function(...args){if(window.__textReady)return fn.apply(this,args);clearView();view.innerHTML=`<p class="hint loading">Загружаются записи…</p>`;TEXT.then(()=>fn.apply(this,args))}}
 openUnit=(f=>function(n,...r){setHash("e"+n);return f.call(this,n,...r)})(whenText(openUnit));showSame=whenText(showSame);showFeed=whenText(showFeed);showVoices=whenText(showVoices);showVoice=whenText(showVoice);showMap=whenText(showMap);showMsgs=whenText(showMsgs);showTally=whenText(showTally);showSearch=whenText(showSearch);showPosts=whenText(showPosts);
-window.__APP={GROUPS,group,ORDER,BLOCKS,BOOK,BY,OBJS,HALLS,esc,view,clearView,setNav,showMuseum,openUnit,showObj,go,lab,imgOf,objThumb,getSampler,NET,cleanup:()=>cleanup,whenText,
+window.__APP={texUrl:n=>TEXIMG.has(n)?`img/tx_${n}.webp`:null,GROUPS,group,ORDER,BLOCKS,BOOK,BY,OBJS,HALLS,esc,view,clearView,setNav,showMuseum,openUnit,showObj,go,lab,imgOf,objThumb,getSampler,NET,cleanup:()=>cleanup,whenText,
   OBJ_ALL,OBJ_ORIG,ORIGBY,HALL_KEYS,hallName,edits:()=>OBJ_EDITS,applyEdits,loadSpaces,spaces:withSpaces,setHash,lightbox};document.dispatchEvent(new Event("appready"));
 if(window.Backend&&Backend.spaces)loadSpaces();
 loadEdits().then(()=>route(h));

@@ -155,7 +155,10 @@ function lift(k){const app=A();cur=k;st.set("cur",k);visited.add(k);st.set("visi
   if(k==="-1"){const sec=document.createElement("div");sec.id="flVisitors";v.appendChild(sec);init().then(()=>drawVisitors("-1"));drawVisitors("-1")}}
 
 /* ---------- маршрут ---------- */
-function go(k){const app=A();if(!app)return;k=String(k||"-1").replace(/^floor[-:]/,"").replace(/^m1$/,"-1");
+function go(k){const app=A();if(!app)return;k=String(k||"-1").replace(/^floor[-:]/,"");
+  /* этап 8, часть 2: #floor-17/3d — пройти по этажу в 3D (только с сервером; без него — обычная страница этажа) */
+  {const m3=/^(m1|-1|17|43|551)\/3d$/.exec(k);if(m3){const f=m3[1]==="m1"?"-1":m3[1];if(window.Backend&&Backend.spaces&&app.spaces){cur=f;st.set("cur",f);visited.add(f);st.set("visited",[...visited]);app.spaces(Sp=>Sp.world3d&&Sp.world3d(f));return}k=f}}
+  k=k.replace(/^m1$/,"-1");
   if(/^invite:/.test(k)){const c=k.slice(7).toUpperCase();cur="43";st.set("pendingInvite",c);render("43");return}
   if(!FL[k])k="-1";
   if(k==="inf"&&!unlocked()){k=cur&&cur!=="inf"?cur:"-1"}
