@@ -1060,15 +1060,92 @@ function showMedia(){
 }
 
 /* ---------- музей ---------- */
+/* ---------- этап 6Г: картинка на весь экран. Полноразмерный источник по размеру окна на тёмном фоне, подпись, закрыть (✕, Esc, клик мимо);
+   колесо и ± — масштаб, перетаскивание — сдвиг, двойной клик/касание — по размеру ↔ 100 %, на телефоне — щипок. Клавиши музея в это время не действуют ---------- */
+(function(){if(document.getElementById("lbx-style"))return;const s=document.createElement("style");s.id="lbx-style";s.textContent=`
+.card .phw{position:relative}
+.card .phw .ph{cursor:zoom-in}
+.card .phx{position:absolute;right:8px;bottom:8px;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.4);background:rgba(12,14,16,.72);color:#F2F4F6;font:500 13px/1 var(--f-body,system-ui),sans-serif;cursor:pointer}
+.card .phx svg{width:15px;height:15px}
+.card .phx:hover,.card .phx:focus-visible{background:rgba(12,14,16,.92);outline:2px solid #E03A1E;outline-offset:2px}
+.lbx{position:fixed;inset:0;z-index:80;background:rgba(6,7,9,.94);color:#EEF1F3;overscroll-behavior:contain;touch-action:none;font:400 14px/1.3 var(--f-body,system-ui),sans-serif}
+.lbx-stage{position:absolute;inset:0 0 56px 0;overflow:hidden;cursor:grab;touch-action:none}
+.lbx-stage.drag{cursor:grabbing}
+.lbx-img{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;user-select:none;-webkit-user-drag:none;image-rendering:auto;box-shadow:0 10px 50px rgba(0,0,0,.5)}
+.lbx-bar{position:absolute;left:0;right:0;bottom:0;height:56px;display:flex;align-items:center;gap:6px;padding:0 10px 0 16px;background:rgba(14,16,19,.96);border-top:1px solid rgba(255,255,255,.12)}
+.lbx-cap{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.lbx-z{font:500 11.5px var(--f-mono,monospace);color:#AEB7BF;min-width:3.6em;text-align:right}
+.lbx button{flex:none;min-width:40px;min-height:40px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:transparent;color:#EEF1F3;font:500 13px/1 inherit;font-family:inherit;cursor:pointer}
+.lbx button:focus-visible{outline:2px solid #E03A1E;outline-offset:2px}
+.lbx .lbx-x{background:#EEF1F3;color:#0E1013;border-color:#EEF1F3}
+.lbx-err{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);margin:0;padding:12px 18px;border-radius:8px;background:#1B1F24;color:#F2C4BA}
+@media (pointer:coarse),(max-width:560px){.lbx button{min-width:44px;min-height:44px;padding:0 10px}.lbx .lbx-fit,.lbx .lbx-z{display:none}.lbx-bar{height:60px;padding-bottom:env(safe-area-inset-bottom)}.lbx-stage{bottom:60px}}`;document.head.appendChild(s)})();
+let LBX=null;
+function lightbox(src,caption,opener){
+  if(LBX)LBX.close();if(document.pointerLockElement)try{document.exitPointerLock()}catch(e){}
+  const el=document.createElement("div");el.className="lbx";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-label","Изображение: "+caption);
+  const fsOk=!!(el.requestFullscreen&&document.fullscreenEnabled);
+  el.innerHTML=`<div class="lbx-stage"><img class="lbx-img" alt="${esc(caption)}" draggable="false"></div><p class="lbx-err" hidden>Не удалось загрузить изображение.</p>
+   <div class="lbx-bar"><span class="lbx-cap">${esc(caption)}</span><span class="lbx-z" aria-live="polite"></span><button type="button" class="lbx-out" aria-label="Уменьшить">−</button><button type="button" class="lbx-in" aria-label="Увеличить">+</button><button type="button" class="lbx-fit" aria-label="По размеру окна или 100 %">по размеру</button>${fsOk?`<button type="button" class="lbx-fs">развернуть</button>`:""}<button type="button" class="lbx-x">закрыть ✕</button></div>`;
+  document.body.appendChild(el);
+  const stage=el.querySelector(".lbx-stage"),img=el.querySelector(".lbx-img"),zEl=el.querySelector(".lbx-z");
+  const V={s:1,tx:0,ty:0,fit:1,nw:0,nh:0,ok:false};const ptr=new Map();let pinch=null,pan=null,moved=0,tap=null,lastT="mouse";
+  const draw=()=>{img.style.transform=`translate(${V.tx}px,${V.ty}px) scale(${V.s})`;zEl.textContent=V.ok?Math.round(V.s*100)+"%":""};
+  const box=()=>stage.getBoundingClientRect();
+  function fit(){if(!V.ok)return;const r=box();V.fit=Math.min(r.width/V.nw,r.height/V.nh);V.s=V.fit;V.tx=(r.width-V.nw*V.s)/2;V.ty=(r.height-V.nh*V.s)/2;draw()}
+  /* сдвиг не уводит картинку за край: меньшая окна сторона — по центру */
+  function clampT(){const r=box(),w=V.nw*V.s,h=V.nh*V.s;V.tx=w<=r.width?(r.width-w)/2:Math.min(0,Math.max(r.width-w,V.tx));V.ty=h<=r.height?(r.height-h)/2:Math.min(0,Math.max(r.height-h,V.ty))}
+  function zoomAt(ns,cx,cy){if(!V.ok)return;ns=Math.max(V.fit*.5,Math.min(Math.max(4,V.fit*8),ns));V.tx=cx-(cx-V.tx)*ns/V.s;V.ty=cy-(cy-V.ty)*ns/V.s;V.s=ns;clampT();draw()}
+  const mid=()=>{const r=box();return [r.width/2,r.height/2]};
+  function toggle(cx,cy){if(Math.abs(V.s-V.fit)<1e-3&&Math.abs(V.fit-1)>.02)zoomAt(1,cx,cy);else fit()}
+  img.onload=()=>{V.nw=img.naturalWidth;V.nh=img.naturalHeight;V.ok=V.nw>0;img.style.width=V.nw+"px";img.style.height=V.nh+"px";fit()};
+  img.onerror=()=>{V.ok=false;img.hidden=true;el.querySelector(".lbx-err").hidden=false;draw()};
+  img.src=src;
+  const onR=()=>fit();window.addEventListener("resize",onR);
+  stage.addEventListener("wheel",ev=>{ev.preventDefault();const r=box();zoomAt(V.s*Math.exp(-(ev.deltaMode===1?ev.deltaY*33:ev.deltaY)*.0015),ev.clientX-r.left,ev.clientY-r.top)},{passive:false});
+  stage.addEventListener("pointerdown",ev=>{lastT=ev.pointerType;try{stage.setPointerCapture(ev.pointerId)}catch(e){}ptr.set(ev.pointerId,{x:ev.clientX,y:ev.clientY,t:ev.pointerType,out:ev.target===stage});moved=0;
+    if(ptr.size===2){const [a,b]=[...ptr.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),s:V.s};pan=null}else if(ptr.size===1){pan={x:ev.clientX,y:ev.clientY};stage.classList.add("drag")}});
+  stage.addEventListener("pointermove",ev=>{const p=ptr.get(ev.pointerId);if(!p)return;p.x=ev.clientX;p.y=ev.clientY;const r=box();
+    if(pinch&&ptr.size>=2){const [a,b]=[...ptr.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);moved+=99;zoomAt(pinch.s*d/Math.max(1,pinch.d),(a.x+b.x)/2-r.left,(a.y+b.y)/2-r.top)}
+    else if(pan){const dx=ev.clientX-pan.x,dy=ev.clientY-pan.y;moved+=Math.abs(dx)+Math.abs(dy);pan={x:ev.clientX,y:ev.clientY};V.tx+=dx;V.ty+=dy;clampT();draw()}});
+  const up=ev=>{const p=ptr.get(ev.pointerId);ptr.delete(ev.pointerId);if(ptr.size<2)pinch=null;if(!ptr.size){pan=null;stage.classList.remove("drag")}
+    if(!p||ev.type==="pointercancel"||moved>6)return;const r=box(),cx=ev.clientX-r.left,cy=ev.clientY-r.top;
+    /* касание: двойное — масштаб; одиночное мимо картинки — закрыть (с задержкой, чтобы распознать двойное) */
+    if(p.t!=="mouse"){const now=performance.now();if(tap&&now-tap.t<320&&Math.hypot(tap.x-cx,tap.y-cy)<40){clearTimeout(tap.id);tap=null;toggle(cx,cy);return}
+      const outside=p.out;tap={t:now,x:cx,y:cy,id:setTimeout(()=>{tap=null;if(outside)close()},330)};return}
+    if(p.out)close()};
+  stage.addEventListener("pointerup",up);stage.addEventListener("pointercancel",up);
+  stage.addEventListener("dblclick",ev=>{if(lastT!=="mouse")return;/* касания считаются сами (двойное касание выше) */const r=box();toggle(ev.clientX-r.left,ev.clientY-r.top)});
+  el.querySelector(".lbx-in").onclick=()=>zoomAt(V.s*1.25,...mid());el.querySelector(".lbx-out").onclick=()=>zoomAt(V.s/1.25,...mid());
+  el.querySelector(".lbx-fit").onclick=()=>toggle(...mid());el.querySelector(".lbx-x").onclick=()=>close();
+  const fsB=el.querySelector(".lbx-fs");const onFs=()=>{if(fsB)fsB.textContent=document.fullscreenElement===el?"свернуть":"развернуть";setTimeout(fit,60)};
+  if(fsB){fsB.onclick=()=>{try{if(document.fullscreenElement===el)document.exitFullscreen().catch(()=>{});else el.requestFullscreen().catch(()=>{fsB.disabled=true;fsB.title="Браузер не разрешил полный экран"})}catch(e){fsB.disabled=true}};document.addEventListener("fullscreenchange",onFs)}
+  /* клавиши остаются здесь: Esc закрывает, ± и 0 — масштаб, Tab ходит по кнопкам панели */
+  el.addEventListener("keydown",ev=>{const k=ev.key;
+    if(k==="Escape"){ev.preventDefault();close()}else if(k==="+"||k==="="){ev.preventDefault();zoomAt(V.s*1.25,...mid())}else if(k==="-"||k==="_"){ev.preventDefault();zoomAt(V.s/1.25,...mid())}else if(k==="0"){ev.preventDefault();fit()}
+    else if(k==="Tab"){const f=[...el.querySelectorAll("button")].filter(b=>!b.disabled&&b.offsetParent!==null);const i=f.indexOf(document.activeElement);if(ev.shiftKey&&i<=0){ev.preventDefault();f[f.length-1].focus()}else if(!ev.shiftKey&&i===f.length-1){ev.preventDefault();f[0].focus()}}
+    ev.stopPropagation()});
+    /* фокус ушёл из окна (клик по фону): клавиши всё равно не доходят до страницы и музея */
+  el.tabIndex=-1;stage.addEventListener("pointerdown",()=>{if(!el.contains(document.activeElement))try{el.focus({preventScroll:true})}catch(e){}});
+  const guard=ev=>{if(el.contains(ev.target))return;ev.stopImmediatePropagation();if(ev.type==="keydown"){if(ev.key==="Escape")close();else if(ev.key==="Tab"){ev.preventDefault();el.querySelector(".lbx-x").focus()}else if(/^(Space| |Arrow|Page|Home|End)/.test(ev.code)||ev.key===" ")ev.preventDefault()}};
+  window.addEventListener("keydown",guard,true);/* keyup не держим: отпущенная клавиша должна отпуститься и в музее */
+  const onPop=()=>close();window.addEventListener("popstate",onPop);
+  function close(){if(!el.isConnected)return;if(tap)clearTimeout(tap.id);window.removeEventListener("resize",onR);window.removeEventListener("popstate",onPop);window.removeEventListener("keydown",guard,true);document.removeEventListener("fullscreenchange",onFs);
+    if(document.fullscreenElement===el)try{document.exitFullscreen().catch(()=>{})}catch(e){}el.remove();LBX=null;if(opener&&opener.isConnected)try{opener.focus({preventScroll:true})}catch(e){}}
+  el.querySelector(".lbx-x").focus({preventScroll:true});
+  LBX={close,el,get state(){return{s:+V.s.toFixed(4),fit:+V.fit.toFixed(4),tx:+V.tx.toFixed(1),ty:+V.ty.toFixed(1),nw:V.nw,nh:V.nh,ok:V.ok,src:img.getAttribute("src"),transform:img.style.transform,err:!el.querySelector(".lbx-err").hidden}}};return LBX}
+window.__lightbox=()=>LBX;
 let musTab="",catHall="all",catQ="",catN=60;
 function showObj(id){
   const o=OBJBY[id];if(!o)return;const e=BY[o.n];
   const ov=document.createElement("div");ov.className="overlay";
-  ov.innerHTML=`<div class="card"><img class="ph" alt="${esc(o.name)}" src="${imgOf(o.id)||objThumb(o)}"><div class="head"><span>${esc(o.id==="cards"?"ЕХ-0303":"ЕХ-П"+o.id.slice(1).padStart(4,"0"))}</span><button class="x" type="button">закрыть ✕</button></div>
+  ov.innerHTML=`<div class="card"><div class="phw"><img class="ph" alt="${esc(o.name)}" src="${imgOf(o.id)||objThumb(o)}"><button type="button" class="phx" aria-label="${esc("Открыть изображение на весь экран: "+o.name)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>на весь экран</button></div><div class="head"><span>${esc(o.id==="cards"?"ЕХ-0303":"ЕХ-П"+o.id.slice(1).padStart(4,"0"))}</span><button class="x" type="button">закрыть ✕</button></div>
    <dl><dt>Предмет</dt><dd>${esc(o.name)}</dd><dt>Зал</dt><dd>${esc(HALLS[o.h])}</dd><dt>Из записи</dt><dd>${lab(o.n)} · ${esc(e?e.t:"")}</dd><dt>Подпись</dt><dd>${esc(o.ret)}</dd><dt>Источник</dt><dd>${esc(o.src||(e?(CARRIER[e.v]||CARRIER.viktor)[1]:""))}</dd></dl>
    <div class="blk"><button type="button" class="lnk" data-open="${o.n}">Открыть запись ${lab(o.n)} →</button>${(o.to||[]).filter(x=>BY[x]).map(x=>`<button type="button" class="lnk" data-open="${x}">Возвращается в ${lab(x)} · ${esc(BY[x].t)}</button>`).join("")}</div></div>`;
   document.body.appendChild(ov);found.add(id);save();
   ov.addEventListener("click",ev=>{if(ev.target===ov||ev.target.closest(".x")||ev.target.closest("[data-open]"))ov.remove()});
+  /* «на весь экран» и клик по картинке: полноразмерный источник (не миниатюра) */
+  const phx=ov.querySelector(".phx"),full=()=>lightbox(imgOf(o.id)||ov.querySelector(".ph").src,o.name,phx);phx.onclick=full;ov.querySelector(".ph").onclick=full;
   ov.querySelector(".x").focus();
 }
 window.__showObj=showObj;

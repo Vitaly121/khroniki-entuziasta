@@ -6,6 +6,8 @@ const L={pos:{},room:null,user:null,uid:null,names:{},me:{},tried:false,msgs:[],
 const COLS=["#2a78d6","#eb6834","#1baf7a","#e87ba4","#6250d6","#eda100","#008300","#e34948"];
 /* жест посетителя в музее (необязательное поле g): принимаем только известные значения, остальное — «нет жеста» */
 const gOf=v=>v==="wave"||v==="sit"?v:"";
+/* облик фигуры (необязательное поле k, этап 6): ровно 40 знаков по образцу museum.js, всё прочее — «нет облика» (фигура цвета посетителя) */
+const kOf=v=>typeof v==="string"&&/^[mf][sp][tn][hn][0-9a-f]{36}$/.test(v)?v:"";
 const colOf=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))>>>0;return COLS[h%COLS.length]};
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const SITE="https://claude.ai/artifact/4RWqffDKeKBBeCbV3auAWo";
@@ -16,7 +18,7 @@ async function init(){if(L._p)return L._p;L._p=(async()=>{try{
   if(user&&L.uid&&user.profiles){try{const p=await user.profiles([L.uid]);L.names[L.uid]=(p&&p[L.uid]&&p[L.uid].name)||""}catch(e){}}
   if(room){L.room=room;
     room.onPeers(ch=>{names(ch.peers.map(p=>p.by).filter(Boolean));emit()},()=>{});
-    room.on("pos",m=>{if(m.sameTab)return;const d=m.data||{};if(d.place===null){delete L.pos[m.peer];emit();return}if(!isFinite(d.x)||!isFinite(d.z))return;const nw=!L.pos[m.peer];L.pos[m.peer]={peer:m.peer,by:m.by,kind:m.kind,isMe:m.isMe,sameTab:false,presence:{x:+d.x,z:+d.z,yaw:+d.yaw||0,hall:String(d.hall||"").slice(0,40),place:"museum",g:gOf(d.g)},at:Date.now()};if(m.by)names([m.by]);if(nw)emit()},()=>{});
+    room.on("pos",m=>{if(m.sameTab)return;const d=m.data||{};if(d.place===null){delete L.pos[m.peer];emit();return}if(!isFinite(d.x)||!isFinite(d.z))return;const nw=!L.pos[m.peer];L.pos[m.peer]={peer:m.peer,by:m.by,kind:m.kind,isMe:m.isMe,sameTab:false,presence:{x:+d.x,z:+d.z,yaw:+d.yaw||0,hall:String(d.hall||"").slice(0,40),place:"museum",g:gOf(d.g),k:kOf(d.k)},at:Date.now()};if(m.by)names([m.by]);if(nw)emit()},()=>{});
     room.on("hallchat",m=>{const d=m.data||{};if(typeof d.text!=="string")return;L.msgs.push({peer:m.peer,by:m.by,me:m.sameTab,hall:String(d.hall||"").slice(0,40),text:d.text.slice(0,300),at:Date.now()});L.msgs=L.msgs.slice(-60);emit()},()=>{})}
  }catch(e){}finally{L.tried=true;header();emit()}})();return L._p}
 async function names(ids){const need=ids.filter(i=>!(i in L.names));if(!need.length||!L.user||!L.user.profiles)return;try{const p=await L.user.profiles(need);need.forEach(i=>L.names[i]=(p&&p[i]&&p[i].name)||"")}catch(e){need.forEach(i=>L.names[i]="")}emit()}
@@ -36,11 +38,11 @@ function header(){let el=document.getElementById("whoBox");const nav=document.ge
 function museum(){init();let last=0,lastSent="",cur=null,lastPos=0;const hb=setInterval(()=>{if(L.room&&cur){L.room.presence(cur).catch(()=>{});L.room.emit("pos",cur).catch(()=>{})}},2000);
   return {
     tick(P,hall){if(!L.room)return;const now=performance.now();if(now-last<110)return;last=now;
-      const s={x:+P.x.toFixed(2),z:+P.z.toFixed(2),yaw:+P.yaw.toFixed(2),hall:String(hall||""),place:"museum"};const g=gOf(P.g);if(g)s.g=g;cur=s;if(now-lastPos>240){lastPos=now;L.room.emit("pos",s).catch(()=>{})}const k=JSON.stringify(s);if(k===lastSent)return;lastSent=k;L.room.presence(s).catch(()=>{})},
+      const s={x:+P.x.toFixed(2),z:+P.z.toFixed(2),yaw:+P.yaw.toFixed(2),hall:String(hall||""),place:"museum"};const g=gOf(P.g);if(g)s.g=g;const lk=kOf(P.k);if(lk)s.k=lk;cur=s;if(now-lastPos>240){lastPos=now;L.room.emit("pos",s).catch(()=>{})}const k=JSON.stringify(s);if(k===lastSent)return;lastSent=k;L.room.presence(s).catch(()=>{})},
     leave(){clearInterval(hb);cur=null;if(L.room)L.room.emit("pos",{place:null}).catch(()=>{});if(L.room)L.room.presence({place:null,x:null,z:null,yaw:null,hall:null}).catch(()=>{})},
     others(){return peers().filter(p=>!p.sameTab&&p.kind==="viewer"&&p.presence&&p.presence.place==="museum"&&isFinite(p.presence.x)&&isFinite(p.presence.z)).map(p=>{
       const say=[...L.msgs].reverse().find(m=>m.peer===p.peer&&Date.now()-m.at<7000);
-      return {id:p.peer,name:nameOf(p),x:+p.presence.x,z:+p.presence.z,yaw:+p.presence.yaw||0,color:colOf(p.by||p.peer),say:say?say.text:"",g:gOf(p.presence.g)}})}}}
+      return {id:p.peer,name:nameOf(p),x:+p.presence.x,z:+p.presence.z,yaw:+p.presence.yaw||0,color:colOf(p.by||p.peer),say:say?say.text:"",g:gOf(p.presence.g),k:kOf(p.presence.k)}})}}}
 /* панель под музеем: кто здесь и чат зала */
 function panel(host,getHall){init();const box=document.createElement("div");box.className="livepanel";host.after(box);
   const draw=()=>{if(!box.isConnected)return;const P=peers().filter(p=>p.kind==="viewer"&&p.presence&&p.presence.place==="museum");const hall=getHall();
