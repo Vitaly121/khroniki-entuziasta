@@ -7,6 +7,42 @@ const ORDER=BOOK.map(e=>e.n);
 const OBJBY=Object.fromEntries(OBJS.map(o=>[o.id,o]));
 const OBJ_OF={};OBJS.forEach(o=>(OBJ_OF[o.n]=OBJ_OF[o.n]||[]).push(o));
 
+/* ---------- этап 8: правки предметов книги (таблица obj_edits; пишет только владелец сайта) ----------
+   Исходные данные не меняются: OBJ_ORIG — как в книге; OBJ_ALL — с правками, включая скрытые; OBJS — то, что видят все.
+   Правка: {name, ret, n, h, img, hide, new} — только изменённые поля (форма описана в server/SPACES.md). */
+const OBJ_ORIG=OBJS.map(o=>Object.assign({},o)),ORIGBY=Object.fromEntries(OBJ_ORIG.map(o=>[o.id,o]));
+const OBJ_ALL=OBJS.slice();let OBJ_EDITS={};const EDIMG={};
+const HALL_KEYS=["kv","pr","id","sv","dv","ot","se","n","kl","kr","hb"];
+const hallName=k=>(k==="hb"?"База Героев":(typeof HALLS!=="undefined"&&HALLS[k])||"");
+function cleanEdit(e){if(!e||typeof e!=="object")return null;const o={};
+  if(typeof e.name==="string"&&e.name.trim())o.name=e.name.trim().slice(0,120);
+  if(typeof e.ret==="string")o.ret=e.ret.slice(0,2000);
+  if(Number.isInteger(e.n)&&BY[e.n])o.n=e.n;
+  if(HALL_KEYS.indexOf(e.h)>=0)o.h=e.h;
+  if(typeof e.img==="string"&&window.Backend&&Backend.objEdits&&Backend.objEdits.url(e.img))o.img=e.img;
+  if(e.hide===true)o.hide=true;if(e.new===true)o.new=true;
+  if(e.pos&&typeof e.pos==="object")o.pos=e.pos;
+  return Object.keys(o).length?o:null}
+function applyEdits(map){map=map||{};OBJ_EDITS={};Object.keys(EDIMG).forEach(k=>delete EDIMG[k]);const list=[];
+  OBJ_ORIG.forEach(o0=>{const e=cleanEdit(map[o0.id]);const o=Object.assign({},o0);
+    if(e&&!e.new){OBJ_EDITS[o0.id]=e;["name","ret","n","h"].forEach(k=>{if(k in e)o[k]=e[k]});if(e.img)EDIMG[o.id]=Backend.objEdits.url(e.img);o._ed=true;if(e.h&&e.h!==o0.h)o._fresh=true;if(e.hide)o._hide=true}
+    list.push(o)});
+  Object.keys(map).forEach(id=>{if(ORIGBY[id]||!/^x[a-z0-9]{3,38}$/.test(id))return;const e=cleanEdit(map[id]);if(!e||!e.new||!e.name||!e.h)return;OBJ_EDITS[id]=e;
+    const o={id,name:e.name,ret:e.ret||"",n:e.n||ORDER[0],h:e.h,to:[],_new:true,_fresh:true,_ed:true};if(e.img)EDIMG[id]=Backend.objEdits.url(e.img);if(e.hide)o._hide=true;list.push(o)});
+  OBJ_ALL.length=0;OBJS.length=0;list.forEach(o=>{OBJ_ALL.push(o);if(!o._hide)OBJS.push(o)});
+  Object.keys(OBJBY).forEach(k=>delete OBJBY[k]);OBJS.forEach(o=>OBJBY[o.id]=o);
+  Object.keys(OBJ_OF).forEach(k=>delete OBJ_OF[k]);OBJS.forEach(o=>(OBJ_OF[o.n]=OBJ_OF[o.n]||[]).push(o));
+  if(typeof thumbCache!=="undefined")Object.keys(thumbCache).forEach(k=>delete thumbCache[k]);
+  window.__objEdits={n:Object.keys(OBJ_EDITS).length,hidden:OBJ_ALL.length-OBJS.length,total:OBJS.length}}
+/* при старте: ждём правки не дольше 1,5 с; опоздавший или неудачный ответ не трогает данные — сайт работает с исходными */
+function loadEdits(){if(!(window.Backend&&Backend.objEdits))return Promise.resolve("none");let late=false;
+  return Promise.race([Backend.objEdits.load().then(m=>{if(late)return "late";applyEdits(m);return "ok"}).catch(()=>"failed"),new Promise(r=>setTimeout(()=>{late=true;r("timeout")},1500))]).then(st=>{window.__objEditsState=st;return st})}
+/* пространства посетителей и редакторы — отдельный файл, грузится только при подключённом сервере */
+let spacesP=null;
+function loadSpaces(){if(!(window.Backend&&Backend.spaces))return Promise.resolve(null);
+  if(!spacesP)spacesP=new Promise(res=>{if(window.Spaces)return res(window.Spaces);const sc=document.createElement("script");sc.src="spaces.js";sc.onload=()=>res(window.Spaces||null);sc.onerror=()=>res(null);document.head.appendChild(sc)});return spacesP}
+const withSpaces=fn=>{loadSpaces().then(S=>{if(S)try{fn(S)}catch(e){}})};
+
 /* ---------- хранение у читателя ---------- */
 const store={get(k,d){try{const v=localStorage.getItem("cv2_"+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem("cv2_"+k,JSON.stringify(v))}catch(e){}}};
 const seen=new Set(store.get("seen",[]));
@@ -129,7 +165,7 @@ function updTally(){$("#tallyCount").textContent=tally.length?" "+tally.length:"
 const IMG=new Set(["cards", "n11", "n13", "n31", "n36", "n41", "n48", "n54", "n55", "n56", "n63", "n69", "n94", "n124", "o0", "o1", "o2", "o3", "o4", "o8", "o10", "o15", "o19", "o20", "o21", "o22", "o39", "o42", "o45", "o46", "o47", "o106", "o129", "o130", "o131", "o132", "o133", "o143", "o194", "o199", "o201", "o214", "o232", "o238", "o239", "o240", "o242", "o244", "o252", "o273", "o279", "o325", "o384", "o395", "o424", "o442", "o449", "o500", "o507", "o542", "o543", "o545", "o560", "o616", "o618", "o731", "o754", "o755", "o776"]);
 const PAINT={"sv": [{"url": "img/p-sv-01.webp", "title": "Тёмный бордовый"}, {"url": "img/p-sv-02.webp", "title": "Винно-чёрный"}, {"url": "img/p-sv-03.webp", "title": "Сливовый"}, {"url": "img/p-sv-04.webp", "title": "Угольно-синий"}, {"url": "img/p-sv-05.webp", "title": "Бурый"}, {"url": "img/p-sv-06.webp", "title": "Ржаво-коричневый"}, {"url": "img/p-sv-07.webp", "title": "Тёмный зелёно-чёрный"}, {"url": "img/p-sv-08.webp", "title": "Чёрный с остаточным красным"}], "se": [{"url": "img/p-se-01.webp", "title": "Низкий горизонт и поле"}, {"url": "img/p-se-02.webp", "title": "Река и дальний берег"}, {"url": "img/p-se-03.webp", "title": "Лесная опушка"}, {"url": "img/p-se-04.webp", "title": "Пригородная дорога"}, {"url": "img/p-se-05.webp", "title": "Вечернее небо над крышами"}, {"url": "img/p-se-06.webp", "title": "Зимний двор"}], "kr": [{"url": "img/p-kr-01.webp", "title": "Долина с рекой"}, {"url": "img/p-kr-02.webp", "title": "Дальний берег"}, {"url": "img/p-kr-03.webp", "title": "Лес у воды"}, {"url": "img/p-kr-04.webp", "title": "Поле перед дождём"}, {"url": "img/p-kr-05.webp", "title": "Холмы в вечернем свете"}, {"url": "img/p-kr-06.webp", "title": "Городской канал"}, {"url": "img/p-kr-07.webp", "title": "Дорога между деревьями"}, {"url": "img/p-kr-08.webp", "title": "Тёмная роща"}, {"url": "img/p-kr-09.webp", "title": "Луговая низина"}, {"url": "img/p-kr-10.webp", "title": "Море под облаками"}, {"url": "img/p-kr-11.webp", "title": "Сад у стены"}, {"url": "img/p-kr-12.webp", "title": "Зимняя равнина"}, {"url": "img/p-kr-13.webp", "title": "Окраина города"}, {"url": "img/p-kr-14.webp", "title": "Небо над полями"}]};
 const TEXIMG=new Set(["concrete", "concreteDark", "concreteLight", "damask", "darkwood", "paper1", "paper2", "paper3", "parquet", "planks", "plaster", "smtiles", "stone", "tiles"]);
-const imgOf=(id,t)=>IMG.has(id)?`img/${id}${t?'_t':''}.webp`:null;
+const imgOf=(id,t)=>EDIMG[id]||(IMG.has(id)?`img/${id}${t?'_t':''}.webp`:null);
 const thumbCache={};
 function objThumb(o){
   if(thumbCache[o.id])return thumbCache[o.id];
@@ -1140,13 +1176,14 @@ function showObj(id){
   const o=OBJBY[id];if(!o)return;const e=BY[o.n];
   const ov=document.createElement("div");ov.className="overlay";
   ov.innerHTML=`<div class="card"><div class="phw"><img class="ph" alt="${esc(o.name)}" src="${imgOf(o.id)||objThumb(o)}"><button type="button" class="phx" aria-label="${esc("Открыть изображение на весь экран: "+o.name)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>на весь экран</button></div><div class="head"><span>${esc(o.id==="cards"?"ЕХ-0303":"ЕХ-П"+o.id.slice(1).padStart(4,"0"))}</span><button class="x" type="button">закрыть ✕</button></div>
-   <dl><dt>Предмет</dt><dd>${esc(o.name)}</dd><dt>Зал</dt><dd>${esc(HALLS[o.h])}</dd><dt>Из записи</dt><dd>${lab(o.n)} · ${esc(e?e.t:"")}</dd><dt>Подпись</dt><dd>${esc(o.ret)}</dd><dt>Источник</dt><dd>${esc(o.src||(e?(CARRIER[e.v]||CARRIER.viktor)[1]:""))}</dd></dl>
+   <dl><dt>Предмет</dt><dd>${esc(o.name)}</dd><dt>Зал</dt><dd>${esc(hallName(o.h))}</dd><dt>Из записи</dt><dd>${lab(o.n)} · ${esc(e?e.t:"")}</dd><dt>Подпись</dt><dd>${esc(o.ret)}</dd><dt>Источник</dt><dd>${esc(o.src||(e?(CARRIER[e.v]||CARRIER.viktor)[1]:""))}</dd></dl>
    <div class="blk"><button type="button" class="lnk" data-open="${o.n}">Открыть запись ${lab(o.n)} →</button>${(o.to||[]).filter(x=>BY[x]).map(x=>`<button type="button" class="lnk" data-open="${x}">Возвращается в ${lab(x)} · ${esc(BY[x].t)}</button>`).join("")}</div></div>`;
   document.body.appendChild(ov);found.add(id);save();
   ov.addEventListener("click",ev=>{if(ev.target===ov||ev.target.closest(".x")||ev.target.closest("[data-open]"))ov.remove()});
   /* «на весь экран» и клик по картинке: полноразмерный источник (не миниатюра) */
   const phx=ov.querySelector(".phx"),full=()=>lightbox(imgOf(o.id)||ov.querySelector(".ph").src,o.name,phx);phx.onclick=full;ov.querySelector(".ph").onclick=full;
   ov.querySelector(".x").focus();
+  withSpaces(S=>S.cardHook&&ov.isConnected&&S.cardHook(ov,o));
 }
 window.__showObj=showObj;
 function showMuseum(tab){
@@ -1154,6 +1191,7 @@ function showMuseum(tab){
   view.innerHTML=`<div class="page-head"><div class="eyebrow">Этаж −1 · Музей всего дорогого · десять залов · ${OBJS.length} предметов</div><h2>Вещи из записей</h2><div class="sub">Каждый зал устроен по образцу своего музея. Подписи безличны. Предметы ведут в записи, где они появились, и в записи, куда возвращаются.</div></div>
    <div id="mus"></div>`;
   view.querySelectorAll("[data-mt]").forEach(b=>b.onclick=()=>showMuseum(b.dataset.mt));if(window.Floors)Floors.lift("-1");
+  {const mh=view.firstElementChild&&view.querySelector(".page-head");withSpaces(S=>S.museumHook&&mh&&mh.isConnected&&S.museumHook(view))}
   const m=$("#mus");
   if(musTab==="swipe"){
     const hs=Object.keys(HALLS).filter(k=>OBJS.some(o=>o.h===k));
@@ -1169,7 +1207,7 @@ function showMuseum(tab){
   } else if(musTab==="cat"){
     m.innerHTML=`<div class="tools"><div class="seg" role="group" aria-label="Зал">${[["all","Все"],...Object.entries(HALLS)].map(([k,t])=>`<button type="button" data-ch="${k}" aria-pressed="${catHall===k}">${esc(t)}</button>`).join("")}</div><input type="search" id="cq" placeholder="Поиск предмета" value="${esc(catQ)}" aria-label="Поиск предмета"></div><div class="cat" id="cg"></div><div style="margin-top:16px" id="more"></div>`;
     const draw=()=>{const q=catQ.toLowerCase();const list=OBJS.filter(o=>(catHall==="all"||o.h===catHall)&&(!q||(o.name+" "+o.ret).toLowerCase().includes(q)));
-      $("#cg").innerHTML=list.slice(0,catN).map(o=>`<button type="button" class="obj" data-obj="${o.id}"><img class="ph" alt="${esc(o.name)}" loading="lazy" src="${objThumb(o)}"><span class="cap"><b>${esc(o.name)}</b><span>${esc(HALLS[o.h])} · запись ${lab(o.n)}${found.has(o.id)?" · найден":""}</span></span></button>`).join("")||`<p class="hint">Ничего не нашлось.</p>`;
+      $("#cg").innerHTML=list.slice(0,catN).map(o=>`<button type="button" class="obj" data-obj="${o.id}"><img class="ph" alt="${esc(o.name)}" loading="lazy" src="${objThumb(o)}"><span class="cap"><b>${esc(o.name)}</b><span>${esc(hallName(o.h))} · запись ${lab(o.n)}${found.has(o.id)?" · найден":""}</span></span></button>`).join("")||`<p class="hint">Ничего не нашлось.</p>`;
       $("#more").innerHTML=list.length>catN?`<button class="chip" type="button" id="mr">Показать ещё · осталось ${list.length-catN}</button>`:"";if($("#mr"))$("#mr").onclick=()=>{catN+=60;draw()}};
     draw();m.querySelectorAll("[data-ch]").forEach(b=>b.onclick=()=>{catHall=b.dataset.ch;catN=60;m.querySelectorAll("[data-ch]").forEach(x=>x.setAttribute("aria-pressed",x===b));draw()});
     $("#cq").oninput=ev=>{catQ=ev.target.value;catN=60;draw()};
@@ -1237,7 +1275,7 @@ function showSearch(q){
     const sec=(title,n,html)=>n?`<section class="sres"><div class="eyebrow">${title} · ${n}</div>${html}</section>`:"";
     r.innerHTML=(sec("Записи",E.length,E.map(x=>`<button type="button" class="srow" data-open="${x.e.n}"><b><span class="vmark" style="background:${color(x.e)}"></span>${lab(x.e.n)} · ${esc(x.e.t)}</b><span>${snip(textOf(x.e)||x.e.t,q)}</span></button>`).join(""))
       +sec("Переписки",Ch.length,Ch.map(([k,c])=>`<button type="button" class="srow" data-go="msgs:${k}"><b>${esc(c.name)}</b><span>${snip(chatText[k]||c.sub||"",q)}</span></button>`).join(""))
-      +sec("Предметы",O.length,O.map(o=>`<button type="button" class="srow" data-obj="${o.id}"><b>${esc(o.name)}</b><span>${esc(HALLS[o.h]||"")} · запись ${lab(o.n)}</span></button>`).join(""))
+      +sec("Предметы",O.length,O.map(o=>`<button type="button" class="srow" data-obj="${o.id}"><b>${esc(o.name)}</b><span>${esc(hallName(o.h))} · запись ${lab(o.n)}</span></button>`).join(""))
       +sec("Люди",Pp.length,Pp.map(p=>`<div class="srow"><b>${esc(p[0])}</b><span>${esc(p[1])}</span></div>`).join("")))||`<p class="hint">Ничего не нашлось.</p>`};
   let t=null;inp.oninput=()=>{searchQ=inp.value;clearTimeout(t);t=setTimeout(draw,160)};draw();
 }
@@ -1253,6 +1291,7 @@ function route(h){_routing=true;try{
   else if(/^(floor[-:]|invite:)/.test(h)&&window.Floors)Floors.go(h);
   else if(/^e\d+$/.test(h))openUnit(+h.slice(1));
   else if(/^o:/.test(h))showObj(decodeURIComponent(h.slice(2)));
+  else if(/^(spaces-|space-|objs-all)/.test(h)){if(window.Backend&&Backend.spaces){const hh=h;loadSpaces().then(S=>S?S.route(hh):showHome())}else showHome()}
   else if(VIEWS.includes(h.split(":")[0]))go(h);
   else showHome()}finally{_routing=false}}
 window.addEventListener("popstate",()=>{document.querySelectorAll(".overlay,.loupe").forEach(x=>x.remove());route((location.hash||"").slice(1))});
@@ -1281,6 +1320,8 @@ const TEXT=new Promise(res=>{if(window.BOOKTEXT)return res();const s=document.cr
   .then(()=>{const T=window.BOOKTEXT||{},X=window.BOOKX||{};BOOK.forEach(e=>{if(T[e.n])e.seg=T[e.n];if(X[e.n])Object.assign(e,X[e.n])});window.__textReady=true;document.dispatchEvent(new Event("textready"))});
 function whenText(fn){return function(...args){if(window.__textReady)return fn.apply(this,args);clearView();view.innerHTML=`<p class="hint loading">Загружаются записи…</p>`;TEXT.then(()=>fn.apply(this,args))}}
 openUnit=(f=>function(n,...r){setHash("e"+n);return f.call(this,n,...r)})(whenText(openUnit));showSame=whenText(showSame);showFeed=whenText(showFeed);showVoices=whenText(showVoices);showVoice=whenText(showVoice);showMap=whenText(showMap);showMsgs=whenText(showMsgs);showTally=whenText(showTally);showSearch=whenText(showSearch);showPosts=whenText(showPosts);
-window.__APP={GROUPS,group,ORDER,BLOCKS,BOOK,BY,OBJS,HALLS,esc,view,clearView,setNav,showMuseum,openUnit,showObj,go,lab,imgOf,objThumb,getSampler,NET,cleanup:()=>cleanup,whenText};document.dispatchEvent(new Event("appready"));
-route(h);
+window.__APP={GROUPS,group,ORDER,BLOCKS,BOOK,BY,OBJS,HALLS,esc,view,clearView,setNav,showMuseum,openUnit,showObj,go,lab,imgOf,objThumb,getSampler,NET,cleanup:()=>cleanup,whenText,
+  OBJ_ALL,OBJ_ORIG,ORIGBY,HALL_KEYS,hallName,edits:()=>OBJ_EDITS,applyEdits,loadSpaces,spaces:withSpaces,setHash,lightbox};document.dispatchEvent(new Event("appready"));
+if(window.Backend&&Backend.spaces)loadSpaces();
+loadEdits().then(()=>route(h));
 })();

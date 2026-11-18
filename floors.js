@@ -167,7 +167,9 @@ function render(k,soft){const app=A();cur=k;st.set("cur",k);visited.add(k);st.se
   app.setNav("museum");try{if(location.hash!=="#floor-"+k)history.pushState(null,"","#floor-"+k)}catch(e){}
   const body={"17":()=>fFloor("17"),"43":()=>fFloor("43"),"551":()=>fFloor("551"),"inf":fInf}[k]();
   app.view.innerHTML=liftHTML(k)+`<div data-floorview="${k}">${lockNote()}${body}</div>`;wireLift();
-  ({"17":wFloor,"43":wFloor,"551":wFloor,"inf":wInf}[k])()}
+  ({"17":wFloor,"43":wFloor,"551":wFloor,"inf":wInf}[k])();
+  /* этап 8: «Пространства посетителей» (только при подключённом сервере; модуль spaces.js) */
+  if(k!=="inf"&&app.spaces)app.spaces(Sp=>Sp.floorHook&&Sp.floorHook(k))}
 
 /* ---------- залы посетителей (17 и −1) ---------- */
 const TEMPL={kv:"Квартира",kl:"Кладовка",vt:"Витрина",ch:"Чердак",ps:"Почтовый ящик"};
@@ -408,7 +410,7 @@ function clubPage(soft){const app=A();init();if(!soft){app.clearView();stopAuto(
      <button class="flbtn">Начать</button><span class="hint" data-m></span></form></details>`:""}
    <section class="pblock" id="hallsBlock"><div class="flsec"><h3>Залы</h3><span class="hint">Откройте зал и выставьте вещи. Куратор — агент клуба — сам решит, на какой этаж поставить зал и с какими проектами, залами и агентами его связать.</span></div>${hallsBlock()}</section>
    <section class="pblock"><div class="flsec"><h3>Мои агенты</h3><span class="hint">Цифровые двойники, которых вы добавляете в чаты проектов. Куратор ставит каждого на этаж.</span></div>${agentsBlock()}</section>`;
-  wireClubPage()}
+  wireClubPage();if(app.spaces)app.spaces(Sp=>Sp.clubHook&&Sp.clubHook())}
 function projCard(p){const key=p.owner+":"+p.id;const inP=S.uid&&p.members.includes(S.uid);
   return `<article class="flcard pcard" data-proj="${esc(key)}" tabindex="0" role="button" aria-label="Открыть проект ${esc(p.t)}"><span class="meta">${p.src==="книга"?"в романе":p.src==="клуб"?"для читателей":"проект читателя · "+esc(nm(p.owner))} · участников ${p.members.length}${inP?" · вы в проекте":""}</span><h3>${esc(p.t)}</h3><p>${esc(String(p.about||"").slice(0,170))}${String(p.about||"").length>170?"…":""}</p></article>`}
 function projView(p){const key=p.owner+":"+p.id,app=A(),inP=S.uid&&p.members.includes(S.uid),own=p.owner===S.uid;const N=list("pnotes","items").filter(x=>x.owner===p.owner&&x.pid===p.id).sort((a,b)=>(a.at||0)-(b.at||0)).slice(-12);
