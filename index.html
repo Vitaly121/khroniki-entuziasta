@@ -383,6 +383,8 @@ input[type=search]{font:inherit;border:1px solid var(--line);background:var(--sh
 .gate h3{font-family:var(--f-body);font-size:clamp(26px,3.2vw,40px);margin:0 0 8px}
 .gate p{max-width:44ch;margin:0 auto 18px;color:#C7CED5;font-size:14.5px}
 .gate .start{background:#EEF1F3;color:#0E1013}
+/* этап 14: на телефоне до входа HUD (кнопки, карта, джойстик) не ложится поверх заставки «Музей всего дорогого» */
+@media (max-width:760px){.hallwrap.mz-gated .mz-ctl,.hallwrap.mz-gated .mz-map,.hallwrap.mz-gated .mz-pad,.hallwrap.mz-gated .stick,.hallwrap.mz-gated .mz-gmenu,.hallwrap.mz-gated .hallbar{visibility:hidden}}
 .hallmsg{position:absolute;inset:0;display:grid;place-items:center;color:#AEB7BF;font-size:14px;text-align:center;padding:24px;background:#0B0C0E}
 .overlay{position:fixed;inset:0;z-index:50;background:rgba(10,12,14,.55);display:grid;place-items:center;padding:20px}
 .overlay .card{max-width:440px;width:100%;max-height:86vh;overflow:auto}
@@ -432,6 +434,8 @@ input[type=search]{font:inherit;border:1px solid var(--line);background:var(--sh
 #elabels{position:absolute;inset:0;pointer-events:none;z-index:3}
 .elbl{position:absolute;left:0;top:0;pointer-events:auto;display:inline-flex;align-items:center;gap:7px;padding:5px 11px 5px 9px;border-radius:999px;border:1px solid rgba(233,228,218,.22);background:rgba(10,13,17,.72);backdrop-filter:blur(6px);color:#EDE8DE;font:500 13px var(--f-ui);cursor:pointer;white-space:nowrap;transition:opacity .25s,border-color .2s,background .2s}
 .elbl:hover,.elbl:focus-visible{border-color:rgba(233,228,218,.7);background:rgba(24,30,38,.92);outline:none}
+/* этап 14: видимая рамка фокуса с клавиатуры (карта всегда тёмная — светлое кольцо + красная рамка сайта) */
+.elbl:focus-visible{outline:2px solid var(--stamp);outline-offset:2px;box-shadow:0 0 0 4px rgba(10,13,17,.9)}
 .elbl i,.eclusters i,.ecard i{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none;box-shadow:0 0 8px currentColor}
 .etip{position:absolute;z-index:4;pointer-events:none;transform:translate(14px,14px);max-width:290px;background:rgba(12,15,19,.94);border:1px solid rgba(233,228,218,.2);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.4;color:#F2F2EE;display:grid;gap:3px}
 .etip b{font-weight:600}.etip small{color:#98A3AE;font-family:var(--f-mono);font-size:11px}.etip span{font-family:var(--f-body);font-size:14px;color:#D7D1C5}
@@ -501,6 +505,9 @@ input[type=search]{font:inherit;border:1px solid var(--line);background:var(--sh
   input,select,textarea{font-size:16px}
   .page-head h2{font-size:30px}
   /* таб-бар */
+  /* этап 14: 3D-окно целиком между шапкой и панелью вкладок: высота не больше просвета, прокрутка/фокус оставляют отступ под панель */
+  .hallwrap canvas{height:min(74vh,700px,calc(100dvh - var(--topH) - var(--tabH) - 24px));scroll-margin-top:calc(var(--topH) + 8px);scroll-margin-bottom:calc(var(--tabH) + 12px)}
+  .hallwrap{scroll-margin-top:calc(var(--topH) + 8px);scroll-margin-bottom:calc(var(--tabH) + 12px);margin-bottom:12px}
   .tabbar{display:grid;grid-template-columns:repeat(6,1fr);position:fixed;left:0;right:0;bottom:0;z-index:40;height:var(--tabH);padding:6px max(6px,env(safe-area-inset-left,0px)) env(safe-area-inset-bottom,0px);background:color-mix(in srgb,var(--sheet) 84%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px);border-top:1px solid var(--line-soft)}
   .tabbar button{border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;padding:2px 0;color:var(--muted);font-size:10.5px;font-weight:500;cursor:pointer;min-height:44px}
   .tabbar svg{width:25px;height:25px}

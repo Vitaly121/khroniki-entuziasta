@@ -50,6 +50,15 @@ const hallStylesFor=()=>{try{return window.Backend&&Backend.hallStyles?Backend.h
 /* редактор оформления — отдельный файл, грузится только у админа по кнопке */
 let hsUiP=null;
 function loadHallUi(){if(!hsUiP)hsUiP=new Promise(res=>{if(window.HallStyleUI)return res(window.HallStyleUI);const sc=document.createElement("script");sc.src="hallstyle.js";sc.onload=()=>res(window.HallStyleUI||null);sc.onerror=()=>{hsUiP=null;res(null)};document.head.appendChild(sc)});return hsUiP}
+/* этап 14: открыть редактор оформления с индикатором на кнопке (файл грузится лениво) и понятным сообщением при ошибке.
+   btn — нажатая кнопка (на время загрузки: disabled, aria-busy, «Открываю редактор…»); say(t,err) — куда писать ошибку */
+function openHallUi(k,btn,say){if(btn&&btn.getAttribute("aria-busy")==="true")return Promise.resolve(false);const t0=btn?btn.textContent:"";
+  if(btn){btn.disabled=true;btn.setAttribute("aria-busy","true");btn.textContent="Открываю редактор…"}if(say)say("");
+  const done=()=>{if(btn){btn.disabled=false;btn.removeAttribute("aria-busy");btn.textContent=t0}};
+  const fail=()=>{done();if(say)say("Не удалось открыть редактор оформления: файл не загрузился. Проверьте соединение и нажмите ещё раз.",true);return false};
+  const tm=new Promise(r=>setTimeout(()=>r("timeout"),20000));
+  return Promise.race([loadHallUi(),tm]).then(H=>{if(!H||H==="timeout"){if(H==="timeout")hsUiP=null;return fail()}
+    return Promise.resolve().then(()=>H.open(k)).then(r=>{done();return r},()=>{done();if(say)say("Редактор не открылся: не удалось получить данные залов. Попробуйте ещё раз.",true);return false})},fail)}
 /* перезапуск 3D-музея с теми же данными (после правок оформления или предметов): посетитель остаётся на месте */
 let MUS_RESUME=null;
 function remountMuseum(){const m=document.getElementById("mus");if(!m||!m.querySelector(".hallwrap"))return false;const c=m.querySelector(".hallwrap canvas"),z=c&&c.__mz;
@@ -535,7 +544,7 @@ function showHome(){
   let cam={x:AR/2,y:.5,z:1},camT={...cam};let W=0,H=0,S=1;
   const toScr=(x,y)=>[(x-cam.x)*S*cam.z+W/2,(y-cam.y)*S*cam.z+H/2];
   const toW=(sx,sy)=>[(sx-W/2)/(S*cam.z)+cam.x,(sy-H/2)/(S*cam.z)+cam.y];
-  function fit(){W=box.clientWidth;H=box.clientHeight;S=Math.min(W/(AR*1.04),H/1.06);const d=devicePixelRatio||1;cv.width=W*d;cv.height=H*d;ctx.setTransform(d,0,0,d,0,0)}
+  const lblSz=new Map();function fit(){lblSz.clear();W=box.clientWidth;H=box.clientHeight;S=Math.min(W/(AR*1.04),H/1.06);const d=devicePixelRatio||1;cv.width=W*d;cv.height=H*d;ctx.setTransform(d,0,0,d,0,0)}
   /* подписи облаков */
   const LBL=[...Object.entries(GROUPS).map(([k,g])=>({k,name:g.name,color:g.color,sub:`${g.carrier} · ${vcount(k)}`,attr:`data-voice="${k}"`})),
     ...Object.entries(META).map(([k,m])=>({k,name:m.name,color:m.color,sub:m.what,attr:`data-go="${m.go}"`}))];
@@ -569,7 +578,12 @@ function showHome(){
         if(p.t==="c"&&(p===hover||cam.z>2.2)){ctx.globalAlpha=a*.85;ctx.fillStyle="#F2F2EE";ctx.font="11px "+getComputedStyle(document.documentElement).getPropertyValue("--f-ui");ctx.textAlign="center";ctx.fillText(p.ch.name,p.X,p.Y+r+13);ctx.textAlign="left"}}
       ctx.globalAlpha=1});
     /* подписи облаков следуют за камерой */
-    LBL.forEach(l=>{const c=C[l.k];const s=toScr(c.x*AR,c.y-c.r*.95-.02);const b=lblEl[l.k];b.style.transform=`translate(${Math.round(s[0])}px,${Math.round(s[1])}px) translate(-50%,-100%)`;b.style.opacity=(focus&&focus!==l.k?.35:1)*ei});
+    /* этап 14: подписи не наезжают друг на друга и не выходят за край карты — раздвигаем по вертикали, прижимаем к краям */
+    const R_=LBL.map(l=>{const c=C[l.k];const s=toScr(c.x*AR,c.y-c.r*.95-.02);const b=lblEl[l.k];let z=lblSz.get(l.k);if(!z||!z[0]){z=[b.offsetWidth,b.offsetHeight];lblSz.set(l.k,z)}
+      return {l,b,w:z[0],h:z[1],x:Math.max(4,Math.min(W-z[0]-4,s[0]-z[0]/2)),y:s[1]-z[1]}});
+    for(let it=0;it<6;it++){let mv=false;for(let i=0;i<R_.length;i++)for(let j=i+1;j<R_.length;j++){const a=R_[i],q=R_[j];
+      if(a.x<q.x+q.w+2&&q.x<a.x+a.w+2&&a.y<q.y+q.h+2&&q.y<a.y+a.h+2){const up=a.y+a.h/2<=q.y+q.h/2?a:q,dn=up===a?q:a,ov=up.y+up.h+2-dn.y;up.y-=ov/2;dn.y+=ov/2;mv=true}}if(!mv)break}
+    R_.forEach(r=>{r.b.style.transform=`translate(${Math.round(r.x)}px,${Math.round(r.y)}px)`;r.b.style.opacity=(focus&&focus!==r.l.k?.35:1)*ei});
     raf=requestAnimationFrame(draw)}
   function pick(x,y){let h=null,best=16;P.forEach(p=>{if(p.t==="o"&&!p.ph&&cam.z<1.6)return;const d=Math.hypot(p.X-x,p.Y-y)-p.r;if(d<best){best=d;h=p}});return h}
   function showTip(p,x,y){tip.hidden=false;tip.style.left=x+"px";tip.style.top=y+"px";
@@ -595,7 +609,7 @@ function showHome(){
   cv.addEventListener("dblclick",()=>{camT={x:AR/2,y:.5,z:1}});
   $("#eReset").onclick=()=>{camT={x:AR/2,y:.5,z:1}};
   $("#eThread").onclick=ev=>{thread=!thread;ev.currentTarget.setAttribute("aria-pressed",thread)};
-  fit();const ro=new ResizeObserver(fit);ro.observe(box);
+  fit();const ro=new ResizeObserver(fit);ro.observe(box);try{document.fonts&&document.fonts.ready.then(()=>lblSz.clear())}catch(e){}
   raf=requestAnimationFrame(draw);cleanup.push(()=>{cancelAnimationFrame(raf);ro.disconnect()});
 }
 
@@ -1239,7 +1253,7 @@ function showMuseum(tab){
       branches:bookBranches(),enterBranch:enterB,spaceUrl:p=>window.Backend&&Backend.halls?Backend.halls.url(p):"",spaceMsg:e=>Backend.spaces.message(e),
       onSpaceObj:(s,o,op)=>withSpaces(S=>S.objCard&&S.objCard(s,o,op)),
       branchSave:window.Backend&&Backend.spaces?(s,o,place)=>Backend.spaces.place(o.id,place).then(r=>{const h=AHALLS.find(x=>x.id===s.id),ob=h&&h.objects.find(x=>x.id===o.id);if(ob)ob.place=r.obj.place;return r}):null,
-      hallEdit:window.Backend&&Backend.hallStyles?{can:()=>Backend.isAdmin(),open:k=>loadHallUi().then(H=>H&&H.open(k==="hb2"?"hb":k))}:null,thumb:objThumb,photo:id=>imgOf(id),paint:PAINT,texUrl:n=>TEXIMG.has(n)?`img/tx_${n}.webp`:null,onObj:id=>showObj(id),onOpen:n=>openUnit(n),multi:window.Live?Live.museum():null,
+      hallEdit:window.Backend&&Backend.hallStyles?{can:()=>Backend.isAdmin(),open:(k,btn,say)=>openHallUi(k==="hb2"?"hb":k,btn,say)}:null,thumb:objThumb,photo:id=>imgOf(id),paint:PAINT,texUrl:n=>TEXIMG.has(n)?`img/tx_${n}.webp`:null,onObj:id=>showObj(id),onOpen:n=>openUnit(n),multi:window.Live?Live.museum():null,
       /* этап 8, часть 2: лифт на этажи посетителей и расстановка предметов автором сайта (только при подключённом сервере) */
       lift:window.Backend&&Backend.spaces?{go:t=>withSpaces(S=>S.liftGo&&S.liftGo(t))}:null,
       placeBook:window.Backend&&Backend.objEdits?{can:()=>Backend.spaces.me().then(m=>!!m.owner).catch(()=>false),save:(id,pos)=>Backend.objEdits.setPos(id,pos).then(r=>{const o=OBJBY[id];if(o){if(pos)o.pos=r.data&&r.data.pos;else delete o.pos}if(r.data)OBJ_EDITS[id]=r.data;else delete OBJ_EDITS[id];return r}),msg:e=>Backend.spaces.message(e)}:null});cleanup.push(stop);if(window.Live){const off=Live.panel(m,()=>window.__curHall||"");cleanup.push(off)}}
@@ -1356,7 +1370,7 @@ const TEXT=new Promise(res=>{if(window.BOOKTEXT)return res();const s=document.cr
 function whenText(fn){return function(...args){if(window.__textReady)return fn.apply(this,args);clearView();view.innerHTML=`<p class="hint loading">Загружаются записи…</p>`;TEXT.then(()=>fn.apply(this,args))}}
 openUnit=(f=>function(n,...r){setHash("e"+n);return f.call(this,n,...r)})(whenText(openUnit));showSame=whenText(showSame);showFeed=whenText(showFeed);showVoices=whenText(showVoices);showVoice=whenText(showVoice);showMap=whenText(showMap);showMsgs=whenText(showMsgs);showTally=whenText(showTally);showSearch=whenText(showSearch);showPosts=whenText(showPosts);
 window.__APP={texUrl:n=>TEXIMG.has(n)?`img/tx_${n}.webp`:null,GROUPS,group,ORDER,BLOCKS,BOOK,BY,OBJS,HALLS,esc,view,clearView,setNav,showMuseum,openUnit,showObj,go,lab,imgOf,objThumb,getSampler,NET,cleanup:()=>cleanup,whenText,
-  OBJ_ALL,OBJ_ORIG,ORIGBY,HALL_KEYS,hallName,edits:()=>OBJ_EDITS,applyEdits,loadSpaces,hallStyles:()=>HSTY,setHallStyles:m=>{HSTY=m&&typeof m==="object"?m:{}},remountMuseum,loadHallUi,spaces:withSpaces,setHash,lightbox,
+  OBJ_ALL,OBJ_ORIG,ORIGBY,HALL_KEYS,hallName,edits:()=>OBJ_EDITS,applyEdits,loadSpaces,hallStyles:()=>HSTY,setHallStyles:m=>{HSTY=m&&typeof m==="object"?m:{}},remountMuseum,loadHallUi,openHallUi,spaces:withSpaces,setHash,lightbox,
   adminHalls:()=>AHALLS,setAdminHalls:a=>{AHALLS=Array.isArray(a)?a:[]},reloadAdminHalls:()=>Backend.halls.load({fresh:true}).then(r=>{AHALLS=r||[];return AHALLS}),
   enterBranch:id=>{MUS_ENTER=String(id);showMuseum()}};document.dispatchEvent(new Event("appready"));
 if(window.Backend&&Backend.spaces)loadSpaces();

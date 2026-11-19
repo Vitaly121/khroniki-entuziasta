@@ -48,7 +48,7 @@ function css(){if(document.getElementById("hsCss"))return;const s=document.creat
 .hsd .msg{font-size:14px;min-height:20px}.hsd .msg.err{color:var(--warn,#B3261E)}
 .hsd .pl{display:grid;gap:8px;margin:0;padding:0;list-style:none}
 .hsd .pl li{border:1px solid var(--line,#ccc);padding:8px;display:grid;gap:8px}
-.hsd .pl .g,.hsd .g3{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.hsd .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.hsd .pl .g,.hsd .g3{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.hsd .g3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
 @media (max-width:520px){.hsd .pl .g{grid-template-columns:repeat(2,minmax(0,1fr))}.hsd .g3{grid-template-columns:minmax(0,1fr)}.hsd .box{padding:12px}}
 .hsd .pv canvas,.hsd canvas.sch{width:100%;height:auto;display:block;border:1px solid var(--line,#ccc);background:#111}
 .hsd .badge{font-family:var(--f-mono,monospace);font-size:10.5px;border:1px solid var(--line,#ccc);border-radius:999px;padding:1px 7px;margin-left:6px;white-space:nowrap}
@@ -153,10 +153,11 @@ async function open(k){if(!HB())return false;if(!(await Backend.isAdmin()))retur
       let cs=sp.find(q=>q.k===d.hall&&q.wall===d.wall);if(!cs||cs.pos.indexOf(+d.at)<0){const was=!!d.hall;cs=cs||sp[0];if(cs){m.dock={hall:cs.k,wall:cs.wall,at:cs.pos[Math.floor(cs.pos.length/2)]};if(was)say("Прежнее место не подходит для этого размера — выбрано ближайшее свободное.")}else m.dock={}}
       if(!sp.length){host.innerHTML=`<p class="hint" role="alert">Для зала ${I.w} × ${I.d} м в музее книги нет свободного места. Выберите размер поменьше или форму «комната».</p>`;drawSch();return}
       const halls=[...new Set(sp.map(q=>q.k))],walls=sp.filter(q=>q.k===m.dock.hall),pos=(walls.find(q=>q.wall===m.dock.wall)||walls[0]).pos;
+      const atLab=a=>{a=+a;return m.dock.wall==="s"?(a===0?"посередине":Math.abs(a).toString().replace(".",",")+" м "+(a<0?"вправо":"влево")+" от середины"):String(a).replace(".",",")+" м от входа в зал"};
       host.innerHTML=`<p class="hint">Новый зал примыкает боковой веткой: проём в стене выбранного зала, короткий проход и комната. Показаны только свободные места — без стеллажей, витрин, проёмов, других веток и залов.</p>
         <div class="g3"><label class="f">Зал музея книги<select data-d="hall">${halls.map(x=>`<option value="${x}" ${x===m.dock.hall?"selected":""}>${esc(name(x))}</option>`).join("")}</select></label>
           <label class="f">Стена<select data-d="wall">${walls.map(q=>`<option value="${q.wall}" ${q.wall===m.dock.wall?"selected":""}>${DOCKW[q.wall]||q.wall}</option>`).join("")}</select></label>
-          <label class="f">Место проёма<select data-d="at">${pos.map(a=>`<option value="${a}" ${+a===+m.dock.at?"selected":""}>${m.dock.wall==="s"?(a===0?"посередине":Math.abs(a).toString().replace(".",",")+" м "+(a<0?"вправо":"влево")+" от середины"):String(a).replace(".",",")+" м от входа в зал"}</option>`).join("")}</select></label></div>
+          <label class="f">Место проёма<select data-d="at" title="${esc(atLab(m.dock.at))}">${pos.map(a=>`<option value="${a}" ${+a===+m.dock.at?"selected":""}>${esc(atLab(a))}</option>`).join("")}</select></label></div>
         <canvas class="sch" width="640" height="300" role="img" aria-label="Схема: зал музея книги, его проёмы и место нового зала"></canvas><p class="hint" data-schh></p>`;
       host.querySelectorAll("[data-d]").forEach(el=>el.onchange=()=>{const k=el.dataset.d;if(k==="hall"){const w=sp.find(q=>q.k===el.value);m.dock={hall:el.value,wall:w.wall,at:w.pos[Math.floor(w.pos.length/2)]}}
         else if(k==="wall"){const w=sp.find(q=>q.k===m.dock.hall&&q.wall===el.value);m.dock={hall:m.dock.hall,wall:el.value,at:w.pos[Math.floor(w.pos.length/2)]}}else m.dock.at=+el.value;
@@ -294,12 +295,21 @@ async function open(k){if(!HB())return false;if(!(await Backend.isAdmin()))retur
   function close(){if(!dlg.isConnected)return;const keep=new Set(Object.keys(saved).flatMap(x=>HB().images(saved[x])));AHL.forEach(r=>{(r.hall&&r.hall.paintings||[]).forEach(p=>keep.add(p.img));Backend.spaces.roomImages(r.room).forEach(p=>keep.add(p))});
     const gone=[...fresh].filter(p=>!keep.has(p)),gH=gone.filter(p=>/^halls\//.test(p)),gA=gone.filter(p=>!/^halls\//.test(p));if(gH.length)HB().removeImages(gH).catch(()=>{});if(gA.length&&AH())AH().removeImages(gA).catch(()=>{});
     if(applied){if(app.reloadAdminHalls)app.reloadAdminHalls().catch(()=>{}).then(()=>applyMap(clone(saved)));else applyMap(clone(saved))}dlg.remove();document.removeEventListener("keydown",onKey,true);open_=null;const back=opener&&opener.isConnected?opener:document.querySelector("#spHall")||document.querySelector(".hallwrap canvas");if(back)try{back.focus({preventScroll:true})}catch(e){}}
-  const onKey=ev=>{if(!dlg.isConnected)return;if(ev.key==="Escape"){ev.preventDefault();ev.stopPropagation();if(conf.innerHTML){conf.innerHTML="";const b=btns.querySelector("[data-delhall]");if(b)b.focus();return}close()}else if(ev.key==="Tab"){const fs=[...box.querySelectorAll("button,input,select,textarea")].filter(x=>!x.disabled&&x.offsetParent!==null);if(!fs.length)return;const a=fs[0],z=fs[fs.length-1];
+  /* этап 14: Escape (и щелчок мимо окна) не теряет молча несохранённое — спрашиваем внутри окна */
+  const NEWK=m=>JSON.stringify([String(m.title||"").trim(),m.descr||"",m.floor,m.size,m.shape,+m.h]);
+  const unsaved=()=>Object.keys(drafts).filter(x=>{try{if(x==="new"){const a=drafts.new,f=fresh0();return JSON.stringify(anorm(a.st))!==JSON.stringify(anorm(f.st))||NEWK(a.meta)!==NEWK(f.meta)}return dirty(x)}catch(e){return false}});
+  function askClose(){const L=unsaved();if(!L.length){close();return}const back=box.contains(document.activeElement)?document.activeElement:sel;
+    const nm=x=>x==="new"?"новый зал"+(String(drafts.new.meta.title||"").trim()?" «"+String(drafts.new.meta.title).trim()+"»":""):"«"+(isA(x)?aName(x):name(x))+"»";
+    conf.innerHTML=`<div class="confirm" role="alertdialog" aria-labelledby="hsQT"><p class="hint" id="hsQT" style="color:var(--ink,#111)">Есть несохранённые изменения: ${esc(L.map(nm).join(", "))}. Закрыть окно без сохранения?</p>
+      <div class="row"><button type="button" class="b gh" data-qno>Вернуться к правке</button><button type="button" class="b warn" data-qyes>Закрыть без сохранения</button></div></div>`;
+    conf.querySelector("[data-qyes]").onclick=close;conf.querySelector("[data-qno]").onclick=()=>{conf.innerHTML="";try{(back&&back.isConnected?back:sel).focus()}catch(e){}};
+    const q=conf.querySelector("[data-qno]");q.focus();try{conf.scrollIntoView({block:"nearest"})}catch(e){}}
+  const onKey=ev=>{if(!dlg.isConnected)return;if(ev.key==="Escape"){ev.preventDefault();ev.stopPropagation();const qn=conf.querySelector("[data-qno]");if(qn){qn.click();return}if(conf.innerHTML){conf.innerHTML="";const b=btns.querySelector("[data-delhall]");if(b)b.focus();return}askClose()}else if(ev.key==="Tab"){const fs=[...box.querySelectorAll("button,input,select,textarea")].filter(x=>!x.disabled&&x.offsetParent!==null);if(!fs.length)return;const a=fs[0],z=fs[fs.length-1];
       if(ev.shiftKey&&document.activeElement===a){ev.preventDefault();z.focus()}else if(!ev.shiftKey&&document.activeElement===z){ev.preventDefault();a.focus()}else if(!box.contains(document.activeElement)){ev.preventDefault();a.focus()}}};
   document.addEventListener("keydown",onKey,true);
   /* клавиши внутри окна не доходят до музея (WASD, пробел) */
   ["keydown","keyup"].forEach(t=>dlg.addEventListener(t,ev=>ev.stopPropagation()));
-  dlg.addEventListener("pointerdown",ev=>{if(ev.target===dlg)close()});dlg.querySelector("[data-x]").onclick=close;
+  dlg.addEventListener("pointerdown",ev=>{if(ev.target===dlg)askClose()});dlg.querySelector("[data-x]").onclick=close;
   open_={pick:x=>{if(x==="new"||(IDS.indexOf(x)>=0||savedA[x])&&x!==cur){cur=x;render()}},close};
   render();try{(cur==="new"?ed.querySelector("[data-m=title]"):sel).focus()}catch(e){}return true}
 return {open,close:()=>{if(open_)open_.close()}};

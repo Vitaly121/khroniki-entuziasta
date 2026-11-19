@@ -137,7 +137,7 @@ function panel(host,getHall,getName){init();const box=document.createElement("di
 .whobox{display:inline-flex;align-items:center;gap:6px;margin-left:8px;font-size:13px;color:var(--muted);align-self:center}
 .whodot{width:9px;height:9px;border-radius:50%}.whonm{color:var(--ink)}.whon{font-family:var(--f-mono);font-size:10.5px;border:1px solid var(--line);border-radius:999px;padding:0 6px}
 .whoin{display:inline-flex;align-items:center;border:1px solid #E03A1E;color:#E03A1E;border-radius:999px;padding:3px 11px;font-size:13px;text-decoration:none}
-.whoin:hover,.whoin:focus-visible{background:#E03A1E;color:#fff;outline:none}
+.whoin:hover,.whoin:focus-visible{background:#E03A1E;color:#fff;outline:none}.whoin:focus-visible{outline:2px solid var(--stamp,#E03A1E);outline-offset:2px}
 .livepanel{border:1px solid var(--line);background:var(--sheet);padding:10px 14px;margin-top:12px}
 .lvhead{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.lvpeople{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
 .lvp{display:inline-flex;gap:5px;align-items:center;font-size:13px;border:1px solid var(--line-soft);border-radius:999px;padding:1px 9px}.lvp i{width:8px;height:8px;border-radius:50%}

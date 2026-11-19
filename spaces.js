@@ -152,8 +152,10 @@ async function startNew(k,msgEl,btn){const m=await me();if(!m.id){window.Backend
 function floorHook(k){const host=document.querySelector(`[data-floorview="${k}"]`);if(host)floorSection(k,host)}
 async function museumHook(view){css();floorSection("-1",view);const m=await me();if(!m.owner||!view.isConnected)return;const head=view.querySelector(".page-head");if(!head||view.querySelector("#spOwnerBar"))return;
   const bar=document.createElement("div");bar.id="spOwnerBar";bar.className="sptools";bar.setAttribute("role","group");bar.setAttribute("aria-label","Для автора сайта");
-  bar.innerHTML=`<button type="button" class="spb" id="spObjAdd">Добавить предмет</button><button type="button" class="spb gh" id="spObjAll">Все предметы</button><button type="button" class="spb gh" id="spRev2">Заявки на пространства</button><button type="button" class="spb gh" id="spHall">Оформление залов</button><button type="button" class="spb gh" id="spHallAdd">Добавить зал</button>`;
-  head.after(bar);bar.querySelector("#spHall").onclick=()=>{const a=A();if(a&&a.loadHallUi)a.loadHallUi().then(H=>H&&H.open())};bar.querySelector("#spHallAdd").onclick=()=>{const a=A();if(a&&a.loadHallUi)a.loadHallUi().then(H=>H&&H.open("new"))};bar.querySelector("#spObjAdd").onclick=()=>objEditor(null);bar.querySelector("#spObjAll").onclick=()=>nav("objs-all");bar.querySelector("#spRev2").onclick=()=>nav("spaces-review");
+  bar.innerHTML=`<button type="button" class="spb" id="spObjAdd">Добавить предмет</button><button type="button" class="spb gh" id="spObjAll">Все предметы</button><button type="button" class="spb gh" id="spRev2">Заявки на пространства</button><button type="button" class="spb gh" id="spHall">Оформление залов</button><button type="button" class="spb gh" id="spHallAdd">Добавить зал</button><span class="spmsg" id="spHallM" role="alert"></span>`;
+  /* этап 14: редактор грузится лениво — на кнопке индикатор, при ошибке — сообщение рядом */
+  const hsGo=k=>ev=>{const a=A();if(a&&a.openHallUi)a.openHallUi(k,ev.currentTarget,(t,e)=>setMsg(bar.querySelector("#spHallM"),t,e))};
+  head.after(bar);bar.querySelector("#spHall").onclick=hsGo(undefined);bar.querySelector("#spHallAdd").onclick=hsGo("new");bar.querySelector("#spObjAdd").onclick=()=>objEditor(null);bar.querySelector("#spObjAll").onclick=()=>nav("objs-all");bar.querySelector("#spRev2").onclick=()=>nav("spaces-review");
   const n=await pendingCount(true);const b=bar.querySelector("#spRev2");if(b)b.textContent="Заявки на пространства · "+n}
 async function clubHook(){const v=document.querySelector("[data-clubview=club]");if(!v||!B())return;css();const host=A().view;if(host.querySelector("#spClub"))return;
   const m=await me();if(!document.querySelector("[data-clubview=club]"))return;const sec=document.createElement("section");sec.className="pblock spsec";sec.id="spClub";
@@ -396,6 +398,8 @@ async function objEditor(id,after){const m=await me();if(!m.owner)return;css();c
   const isNew=!id||!app.ORIGBY[id];const ed=id?app.edits()[id]||null:null;const cur=id?app.OBJ_ALL.find(o=>o.id===id):null;if(id&&!cur)return;
   const orig=id?app.ORIGBY[id]:null;const o=cur||{name:"",ret:"",n:app.ORDER[0],h:"kv"};const origImg=orig?app.imgOf(orig.id):null;
   let img=ed&&ed.img?ed.img:"";
+  /* этап 14: у нового предмета прежнего изображения нет — подсказка честная */
+  const fresh=isNew&&!cur;const imgHint=()=>img?"Сейчас: загруженное изображение."+(fresh?"":" Без загрузки остаётся как есть."):fresh?"Изображения пока нет. Загрузите файл — иначе предмет покажется с рисованной заглушкой.":"Сейчас: прежнее изображение. Без загрузки остаётся как есть.";
   const opener=document.activeElement;document.querySelectorAll(".overlay").forEach(x=>x.remove());
   const dlg=document.createElement("div");dlg.className="spdlg";dlg.innerHTML=`<form class="box sped" role="dialog" aria-modal="true" aria-labelledby="spOeH" novalidate>
     <div class="sptools" style="margin:0;justify-content:space-between"><h3 id="spOeH">${isNew&&!cur?"Новый предмет":"Предмет "+esc(o.id)}</h3><button type="button" class="spb gh sm" data-x>Закрыть</button></div>
@@ -405,7 +409,7 @@ async function objEditor(id,after){const m=await me();if(!m.owner)return;css();c
     <label class="f">Зал<select name="h">${cardsHall().map(([k,t])=>`<option value="${k}" ${o.h===k?"selected":""}>${esc(t)}</option>`).join("")}</select></label>
     <div class="spsurf" id="spOeImg"><b>Изображение</b><div class="row"><img class="spthumb" alt="" src="${esc(img?OE().url(img):origImg||app.objThumb(o))}">
       <span class="spb gh sm spfile">Загрузить новое<input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Новое изображение предмета"></span>
-      ${img?`<button type="button" class="spb gh sm" data-keep>${orig?"Вернуть изображение книги":"Убрать изображение"}</button>`:""}</div>${uploadBox()}<span class="sphint">${img?"Сейчас: загруженное изображение.":"Сейчас: прежнее изображение."} Без загрузки остаётся как есть.</span></div>
+      ${img?`<button type="button" class="spb gh sm" data-keep>${orig?"Вернуть изображение книги":"Убрать изображение"}</button>`:""}</div>${uploadBox()}<span class="sphint" id="spOeIH" aria-live="polite">${imgHint()}</span></div>
     <div class="spr"><label><input type="checkbox" name="hide" ${cur&&cur._hide?"checked":""}><span>скрыть предмет</span></label></div>
     <div class="sptools"><button type="submit" class="spb">Сохранить</button>${ed&&orig?`<button type="button" class="spb warn" data-reset>Вернуть как было</button>`:""}${ed&&!orig?`<button type="button" class="spb warn" data-reset>Удалить предмет</button>`:""}<button type="button" class="spb gh" data-x>Отмена</button></div>
     <span class="spmsg" role="alert" id="spOeM"></span></form>`;
@@ -415,9 +419,9 @@ async function objEditor(id,after){const m=await me();if(!m.owner)return;css();c
   const upl=new Set();const close=()=>{if(!dlg.isConnected)return;const drop=[...upl].filter(p=>!(ed&&ed.img===p));if(drop.length)B().removeImages(drop).catch(()=>{});dlg.remove();document.removeEventListener("keydown",onKey,true);if(opener&&opener.isConnected)try{opener.focus()}catch(e){}};
   const onKey=ev=>{if(ev.key==="Escape"){ev.stopPropagation();close()}else if(ev.key==="Tab"){const fs=[...dlg.querySelectorAll("button,input,select,textarea")].filter(x=>!x.disabled&&x.offsetParent);if(!fs.length)return;const a=fs[0],z=fs[fs.length-1];if(ev.shiftKey&&document.activeElement===a){ev.preventDefault();z.focus()}else if(!ev.shiftKey&&document.activeElement===z){ev.preventDefault();a.focus()}}};
   document.addEventListener("keydown",onKey,true);dlg.addEventListener("pointerdown",ev=>{if(ev.target===dlg)close()});dlg.querySelectorAll("[data-x]").forEach(b=>b.onclick=close);
-  const box=dlg.querySelector("#spOeImg");const kb=box.querySelector("[data-keep]");if(kb)kb.onclick=()=>{img="";box.querySelector(".spthumb").src=origImg||app.objThumb(orig||o);kb.remove()};
+  const box=dlg.querySelector("#spOeImg");const kb=box.querySelector("[data-keep]");const upHint=()=>{const e=box.querySelector("#spOeIH");if(e)e.textContent=imgHint()};if(kb)kb.onclick=()=>{img="";box.querySelector(".spthumb").src=origImg||app.objThumb(orig||o);kb.remove();upHint()};
   box.querySelector("input[type=file]").onchange=async ev=>{const file=ev.target.files&&ev.target.files[0];ev.target.value="";if(!file)return;const sb=f.querySelector("[type=submit]");sb.disabled=true;
-    await runUpload(box,file,{book:true},async r=>{img=r.path;upl.add(r.path);box.querySelector(".spthumb").src=r.url});sb.disabled=false};
+    await runUpload(box,file,{book:true},async r=>{img=r.path;upl.add(r.path);box.querySelector(".spthumb").src=r.url;upHint()});sb.disabled=false};
   /* этап 12: после сохранения открытый 3D-музей перезапускается с правками (посетитель остаётся на месте) */
   const finish=async t=>{try{app.applyEdits(await OE().load({fresh:true}))}catch(e){}const re=app.remountMuseum?app.remountMuseum():false;setMsg(M,t+(re?" Музей перезапущен с изменениями.":""));if(after)after();setTimeout(close,600)};
   const rs=dlg.querySelector("[data-reset]");if(rs)rs.onclick=async()=>{if(!confirmTwice(rs,"Точно? Нажмите ещё раз"))return;rs.disabled=true;try{await OE().remove(id);if(ed&&ed.img)B().removeImages([ed.img]).catch(()=>{});await finish(orig?"Возвращено как было.":"Предмет удалён.")}catch(e){rs.disabled=false;setMsg(M,msg(e),true)}};

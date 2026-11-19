@@ -238,7 +238,7 @@ const CSS=`.hallwrap .mz-lift{position:absolute;inset:0;z-index:30;display:flex;
 .hallwrap .mz-arrh{display:flex;justify-content:space-between;align-items:center;gap:8px}.hallwrap .mz-arrh b{font-weight:600}
 .hallwrap .mz-arrp button{min-height:44px;border:1px solid #3A4046;border-radius:8px;background:#1E2226;color:#F2F4F6;font:inherit;cursor:pointer;padding:6px 10px}
 .hallwrap .mz-arrp button:disabled{opacity:.45;cursor:default}.hallwrap .mz-arrp button:focus-visible{outline:2px solid #7FE3CC;outline-offset:2px}
-.hallwrap .mz-arrx{min-width:44px}.hallwrap .mz-arrhint{margin:8px 0;font-size:12.5px;color:#B9C4CA}.hallwrap .mz-arrs{margin:8px 0 0;font-size:13px;color:#7FE3CC;min-height:1.2em}
+.hallwrap .mz-arrx{min-width:44px}.hallwrap .mz-arrhint{margin:8px 0;font-size:12.5px;color:#B9C4CA}.hallwrap .mz-arrs{margin:8px 0 0;font-size:13px;color:#7FE3CC;min-height:1.2em}.mz-arrs.err{color:#FF9C8A}
 .hallwrap .mz-arrl{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow:auto}.hallwrap .mz-arrl button{text-align:left;display:flex;flex-direction:column;align-items:flex-start}
 .hallwrap .mz-arrl button small{color:#9FB0BA;font-size:11.5px}.hallwrap .mz-arrl button[aria-pressed="true"]{border-color:#E03A1E;background:#2A1C19}
 .hallwrap .mz-arra{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
@@ -883,7 +883,10 @@ function mount(host,opt){
   on(hud.querySelector(".mz-who"),"click",ev=>cust.open(false,ev.currentTarget));
   let started=false;
   /* вход: при первом визите — панель облика (управление получает холст после «Готово»), иначе сразу в музей */
-  gate.querySelector("button").onclick=()=>{gate.remove();started=true;snd.gesture();if(hadLook)canvas.focus();else cust.open(true);boot()};
+  /* этап 14: пока заставка, HUD на телефоне скрыт (CSS .mz-gated); после входа 3D-окно целиком между шапкой и панелью вкладок */
+  wrap.classList.add("mz-gated");
+  gate.querySelector("button").onclick=()=>{gate.remove();wrap.classList.remove("mz-gated");started=true;snd.gesture();if(hadLook)canvas.focus({preventScroll:true});else cust.open(true);
+    try{if(!document.fullscreenElement&&matchMedia("(max-width:600px)").matches)wrap.scrollIntoView({block:"nearest"});else if(hadLook)canvas.focus()}catch(e){}boot()};
   /* этап 8, часть 2: после лифта (или по просьбе хозяина страницы) — сразу внутрь, без заставки */
   const carry=CARRY&&Date.now()-CARRY.at<10000?CARRY:null;CARRY=null;if(opt.autostart||carry)setTimeout(()=>{if(!stopped&&gate.isConnected)gate.querySelector("button").onclick()},0);
   function boot(){
@@ -1323,7 +1326,7 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
       ARR.hi=lastHall;if(!ARR.el){const el=document.createElement("div");el.className="mz-arrp";el.setAttribute("role","group");el.setAttribute("aria-label","Изменить расстановку");
         el.innerHTML=`<div class="mz-arrh"><b class="mz-arrt"></b><button type="button" class="mz-arrx" aria-label="Закрыть расстановку">✕</button></div><p class="mz-arrhint">${HALLZ[lastHall]&&HALLZ[lastHall].Q?"Выберите предмет, подойдите к месту и нажмите «поставить здесь»: картина встанет на ближайшую стену на высоте глаз, постамент — на шаг впереди вас.":"Выберите предмет, подойдите к месту и нажмите «поставить здесь»: постамент встанет на шаг впереди вас, лицом к вам."}</p>
           <div class="mz-arrl"></div><div class="mz-arra"><button type="button" data-a="here">поставить здесь</button><button type="button" data-a="rot">повернуть</button><button type="button" data-a="auto">вернуть на автоматическое место</button></div>${!WORLD&&opt.hallEdit?'<div class="mz-arra"><button type="button" data-hs>оформление залов</button></div>':""}<p class="mz-arrs" role="status" aria-live="polite"></p>`;
-        el.querySelector(".mz-arrx").onclick=()=>arrOpen(false);{const hb_=el.querySelector("[data-hs]");if(hb_)hb_.onclick=()=>{if(locked())document.exitPointerLock();pause();const h_=HALLZ[ARR.hi];Promise.resolve(opt.hallEdit.open(h_.Q?"a:"+h_.Q.s.id:h_.k)).catch(()=>{})}}el.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>arrAct(b.dataset.a));
+        el.querySelector(".mz-arrx").onclick=()=>arrOpen(false);{const hb_=el.querySelector("[data-hs]");if(hb_)hb_.onclick=()=>{if(locked())document.exitPointerLock();pause();const h_=HALLZ[ARR.hi],st_=el.querySelector(".mz-arrs");/* этап 14: индикатор и ошибка загрузки редактора */Promise.resolve(opt.hallEdit.open(h_.Q?"a:"+h_.Q.s.id:h_.k,hb_,(t,e)=>{if(st_){st_.textContent=t||"";st_.classList.toggle("err",!!e)}})).catch(()=>{})}}el.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>arrAct(b.dataset.a));
         el.addEventListener("pointerdown",ev=>ev.stopPropagation());hud.appendChild(el);ARR.el=el}
       if(HALLZ[ARR.hi].Q){const s=HALLZ[ARR.hi].space;arrDraw(isHallRow(s)?"Зал автора сайта: изменения видны всем сразу.":"Статус пространства: "+(W_ST[s.status]||s.status)+". После изменений его снова проверяет автор сайта.")}else arrDraw("")}
     function arrSync(hi){if(!ARR.btn)return;const ok=arrOk(hi);ARR.btn.hidden=!ok;if(ARR.open&&(!ok||hi!==ARR.hi)){if(ok){ARR.hi=hi;ARR.sel=null;arrDraw("")}else arrOpen(false)}}
@@ -2534,7 +2537,7 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
         K2.geo(PROPS.G.box,x,1.62,z-.06,.46,.36,.04,0xF2F3F5,{rx:-.5});K2.geo(PROPS.G.tri,x,1.62,z-.04,.44,.06,.42,c,{rx:Math.PI/2-.5});
         [[0,1.7],[-.1,1.62],[.1,1.62],[-.05,1.54],[.05,1.54],[0,1.46]].forEach(([a,b],i)=>K2.sph(x+a,b,z-.09-(1.7-b)*.55,.036,lit,{cm:i%2?cmB:cmA,em:1.5}));
         K2.solid(x-.22,x+.22,z+.18,z-.24,1.8,"ns");K2.solid(x-.52,x+.52,z+.52,z-.52,.12)};
-      barrel(K,13.6,-7.3);barrel(K,19.6,-13.2);barrel(K,24.0,-9.0);tower(K,17.3,-9.0,"towA",0xD12A26,"tA1","tA2",0xFFF0D8);
+      barrel(K,13.6,-7.3);/* этап 14: бочка у щели между клином и барабаном отодвинута — проход в карман у южной стены честный (≈1 м) */barrel(K,19.0,-12.55);barrel(K,24.0,-9.0);tower(K,17.3,-9.0,"towA",0xD12A26,"tA1","tA2",0xFFF0D8);
       K.box(19.5,1.86,B.z0-.04,1.0,.6,.06,0x151618);K.pic(19.5,2.16,B.z0-.072,.92,.52,"monO",{ry:Math.PI,em:1});emb(19.5,2.16,B.z0-.08,.44,Math.PI,IB);
       K.pic(B.x1-.014,3.25,BASE2.DZ,2.0,.5,"labA",{ry:-Math.PI/2});K.pic(15.2,3.3,B.z1+.014,2.0,.5,"labA",{});
       /* проём в «Базу Б»: откосы с лентой «осторожно» */
