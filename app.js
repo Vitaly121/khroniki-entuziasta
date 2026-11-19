@@ -1061,14 +1061,16 @@ function showMsgs(open){
         ms.insertAdjacentHTML("beforeend",`<div class="b me">${esc(q)}<span class="meta"><span class="tk">✓✓</span></span></div>`);
         ms.insertAdjacentHTML("beforeend",`<div class="wait live">«Океан» · ответ формируется<i></i></div>`);const w=ms.lastElementChild;ms.scrollTop=ms.scrollHeight;
         turns.push({role:"user",content:q});
-        const input=[{role:"user",content:card.card+"\n\nНиже — разговор читателя сайта с тобой. Отвечай только репликой копии."},{role:"assistant",content:card.hello},...turns.slice(-16)];
+        const F=window.Floors,sys=(F&&F.bookSys?F.bookSys(k):card.card)+"\n\nНиже — разговор читателя сайта с тобой. Отвечай только репликой копии.";
+        const raw=[{role:"user",content:sys},{role:"assistant",content:card.hello},...turns.slice(-16)];const input=F&&F.alt?F.alt(raw):raw;
         let bub=null;const t0=performance.now();ctl=new AbortController();
         try{const r=await sample(input,{cache:false,signal:ctl.signal,onText:({text})=>{if(!bub){w.remove();ms.insertAdjacentHTML("beforeend",`<div class="b live"><span class="tx"></span><span class="meta">живой ответ</span></div>`);bub=ms.lastElementChild}bub.querySelector(".tx").textContent=text;ms.scrollTop=ms.scrollHeight}});
           if(!bub){w.remove();ms.insertAdjacentHTML("beforeend",`<div class="b live"><span class="tx"></span><span class="meta"></span></div>`);bub=ms.lastElementChild;bub.querySelector(".tx").textContent=r.text}
           bub.querySelector(".meta").textContent="новый ответ · "+((performance.now()-t0)/1000).toFixed(1)+" с"+(r.truncated?" · оборвано":"");
           turns.push({role:"assistant",content:r.text});if(window.Floors)Floors.pubRow($("#pubRow"),{key:k,name:CHATS[k]?CHATS[k].name:k,turns})}
-        catch(e){if(w.isConnected)w.remove();turns.pop();const code=e&&e.code;
-          if(code==="cancelled"){}
+        catch(e){if(w.isConnected)w.remove();turns.pop();const code=e&&e.code;const E=window.Floors&&Floors.sampleErr?Floors.sampleErr(e):{kind:""};
+          if(code==="cancelled"||E.kind==="cancel"){}
+          else if(E.kind==="limit"||E.kind==="login")ms.insertAdjacentHTML("beforeend",`<div class="day">${esc(E.text)}</div>`)
           else if(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(code)){scripted("Живой разговор выключен — копия отвечает из кэша");busy=false;return}
           else ms.insertAdjacentHTML("beforeend",`<div class="day">${code==="rate_limited"?"Копия перегружена. Попробуйте чуть позже":code==="refused"?"Копия не ответила на это. Спросите иначе":"Связь с ядром прервалась. Можно спросить ещё раз"}</div>`)}
         busy=false;if(cmp.isConnected){cmp.querySelector("button").disabled=false;tp.querySelectorAll("button").forEach(x=>x.disabled=false);ms.scrollTop=ms.scrollHeight}}
@@ -1297,11 +1299,15 @@ function route(h){_routing=true;try{
   else if(/^(floor[-:]|invite:)/.test(h)&&window.Floors)Floors.go(h);
   else if(/^e\d+$/.test(h))openUnit(+h.slice(1));
   else if(/^o:/.test(h))showObj(decodeURIComponent(h.slice(2)));
+  else if(/^club\/essay(-\d{1,2})?$/.test(h)){if(window.Essays&&Essays.enabled())Essays.route(h);else go("club")}
   else if(/^(spaces-|space-|objs-all)/.test(h)){if(window.Backend&&Backend.spaces){const hh=h;loadSpaces().then(S=>S?S.route(hh):showHome())}else showHome()}
   else if(VIEWS.includes(h.split(":")[0]))go(h);
   else showHome()}finally{_routing=false}}
 window.addEventListener("popstate",()=>{document.querySelectorAll(".overlay,.loupe").forEach(x=>x.remove());route((location.hash||"").slice(1))});
-function go(v){const [a,b]=String(v).split(":");if(a!=="museum"&&a!=="floor")setHash(a==="search"?"search":String(v));({feed:showFeed,voices:showVoices,map:()=>(window.Chron?Chron.show():showMap()),msgs:()=>showMsgs(b),media:showMedia,museum:()=>(window.Floors?Floors.go(b||"-1"):showMuseum()),floor:()=>(window.Floors?Floors.go(b):showMuseum()),posts:showPosts,club:()=>(window.Floors?Floors.club():showHome()),meaning:()=>(window.Meaning?Meaning.show():showHome()),tally:()=>(window.Stats?Stats.show():showTally()),home:showHome,search:()=>showSearch(b?decodeURIComponent(b):"")})[a]()}
+function go(v){const [a,b]=String(v).split(":");
+  /* этап 11: «essay:07» — из полки в музее; адрес страницы — #club/essay-07 */
+  if(a==="essay"){if(window.Essays&&Essays.enabled())Essays.show(b||"");else go("club");return}
+  if(a!=="museum"&&a!=="floor")setHash(a==="search"?"search":String(v));({feed:showFeed,voices:showVoices,map:()=>(window.Chron?Chron.show():showMap()),msgs:()=>showMsgs(b),media:showMedia,museum:()=>(window.Floors?Floors.go(b||"-1"):showMuseum()),floor:()=>(window.Floors?Floors.go(b):showMuseum()),posts:showPosts,club:()=>(window.Floors?Floors.club():showHome()),meaning:()=>(window.Meaning?Meaning.show():showHome()),tally:()=>(window.Stats?Stats.show():showTally()),home:showHome,search:()=>showSearch(b?decodeURIComponent(b):"")})[a]()}
 document.addEventListener("click",ev=>{
   const o=ev.target.closest("[data-open]");if(o){const ov=o.closest(".overlay");if(ov)ov.remove();openUnit(+o.dataset.open);return}
   const s=ev.target.closest("[data-same]");if(s){showSame(+s.dataset.same);return}

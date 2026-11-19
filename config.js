@@ -5,3 +5,6 @@ window.SITE_BACKEND={
   anonKey:"sb_publishable_VsCFqpzjIKTHZq8QMDaO_Q_7R5f6IDT",
   workerUrl:"https://khroniki.shaposhnikovvitaly.workers.dev"
 };
+/* Флаги разделов. essays — философские эссе в «Клубе» и полка в музее: закрыто до решения автора (список упоминаний городов и личных данных).
+   Включить: essays:true */
+window.SITE_FLAGS=Object.assign({essays:false},window.SITE_FLAGS||{});

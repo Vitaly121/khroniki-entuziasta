@@ -42,7 +42,8 @@ function collection(name){const pre=name+"/";return {
 const db={doc,collection};
 
 /* ---------- sample: ответы двойников через Worker ---------- */
-async function sample(input,opts){opts=opts||{};
+async function sample(input,opts){try{return await sample0(input,opts)}catch(e){if(e&&e.name==="AbortError"){const x=new Error("cancelled");x.code="cancelled";throw x}throw e}}
+async function sample0(input,opts){opts=opts||{};
   if(!C.workerUrl)throw new Error("nosample");const s=await session();if(!s){const e=new Error("login");e.code="login";throw e}
   const messages=typeof input==="string"?[{role:"user",content:input}]:input;
   const r=await fetch(C.workerUrl.replace(/\/$/,"")+"/sample",{method:"POST",signal:opts.signal,headers:{"content-type":"application/json","authorization":"Bearer "+s.access_token,"x-sb-key":C.anonKey},body:JSON.stringify({messages,tier:opts.modelTier==="quick"?"quick":"main"})});
@@ -64,7 +65,7 @@ function makeRoom(sb,me){const hs={},peerCbs=[];let list=[],ok=false,state={};
   return {
     onPeers(cb){peerCbs.push(cb);cb({peers:list})},
     on(ev,cb){(hs[ev]=hs[ev]||[]).push(cb)},
-    async emit(ev,data){if(ev==="hallchat"&&!me){const e=new Error("not_permitted");e.code="not_permitted";throw e}
+    async emit(ev,data){if((ev==="hallchat"||ev==="rtc")&&!me){const e=new Error("not_permitted");e.code="not_permitted";throw e}
       if(ev==="hallchat"&&data&&typeof data.text==="string")data.text=data.text.slice(0,300);
       await ch.send({type:"broadcast",event:"m",payload:{e:ev,p:TAB,by:me,d:data}})},
     async presence(s){state=s||{};if(ok)await ch.track({by:me,state})},
