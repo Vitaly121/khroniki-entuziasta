@@ -152,8 +152,8 @@ async function startNew(k,msgEl,btn){const m=await me();if(!m.id){window.Backend
 function floorHook(k){const host=document.querySelector(`[data-floorview="${k}"]`);if(host)floorSection(k,host)}
 async function museumHook(view){css();floorSection("-1",view);const m=await me();if(!m.owner||!view.isConnected)return;const head=view.querySelector(".page-head");if(!head||view.querySelector("#spOwnerBar"))return;
   const bar=document.createElement("div");bar.id="spOwnerBar";bar.className="sptools";bar.setAttribute("role","group");bar.setAttribute("aria-label","Для автора сайта");
-  bar.innerHTML=`<button type="button" class="spb" id="spObjAdd">Добавить предмет</button><button type="button" class="spb gh" id="spObjAll">Все предметы</button><button type="button" class="spb gh" id="spRev2">Заявки на пространства</button>`;
-  head.after(bar);bar.querySelector("#spObjAdd").onclick=()=>objEditor(null);bar.querySelector("#spObjAll").onclick=()=>nav("objs-all");bar.querySelector("#spRev2").onclick=()=>nav("spaces-review");
+  bar.innerHTML=`<button type="button" class="spb" id="spObjAdd">Добавить предмет</button><button type="button" class="spb gh" id="spObjAll">Все предметы</button><button type="button" class="spb gh" id="spRev2">Заявки на пространства</button><button type="button" class="spb gh" id="spHall">Оформление залов</button>`;
+  head.after(bar);bar.querySelector("#spHall").onclick=()=>{const a=A();if(a&&a.loadHallUi)a.loadHallUi().then(H=>H&&H.open())};bar.querySelector("#spObjAdd").onclick=()=>objEditor(null);bar.querySelector("#spObjAll").onclick=()=>nav("objs-all");bar.querySelector("#spRev2").onclick=()=>nav("spaces-review");
   const n=await pendingCount(true);const b=bar.querySelector("#spRev2");if(b)b.textContent="Заявки на пространства · "+n}
 async function clubHook(){const v=document.querySelector("[data-clubview=club]");if(!v||!B())return;css();const host=A().view;if(host.querySelector("#spClub"))return;
   const m=await me();if(!document.querySelector("[data-clubview=club]"))return;const sec=document.createElement("section");sec.className="pblock spsec";sec.id="spClub";
@@ -409,22 +409,24 @@ async function objEditor(id,after){const m=await me();if(!m.owner)return;css();c
     <span class="spmsg" role="alert" id="spOeM"></span></form>`;
   document.body.appendChild(dlg);const f=dlg.querySelector("form"),M=dlg.querySelector("#spOeM");
   const showN=()=>{const n=+f.n.value,e=app.BY[n];dlg.querySelector("#spOeN").textContent=e?app.lab(n)+" · "+e.t:"Нет записи с таким номером."};showN();f.n.oninput=showN;
-  const close=()=>{dlg.remove();document.removeEventListener("keydown",onKey,true);if(opener&&opener.isConnected)try{opener.focus()}catch(e){}};
+  /* этап 12: загруженная, но не сохранённая картинка не остаётся в хранилище */
+  const upl=new Set();const close=()=>{if(!dlg.isConnected)return;const drop=[...upl].filter(p=>!(ed&&ed.img===p));if(drop.length)B().removeImages(drop).catch(()=>{});dlg.remove();document.removeEventListener("keydown",onKey,true);if(opener&&opener.isConnected)try{opener.focus()}catch(e){}};
   const onKey=ev=>{if(ev.key==="Escape"){ev.stopPropagation();close()}else if(ev.key==="Tab"){const fs=[...dlg.querySelectorAll("button,input,select,textarea")].filter(x=>!x.disabled&&x.offsetParent);if(!fs.length)return;const a=fs[0],z=fs[fs.length-1];if(ev.shiftKey&&document.activeElement===a){ev.preventDefault();z.focus()}else if(!ev.shiftKey&&document.activeElement===z){ev.preventDefault();a.focus()}}};
   document.addEventListener("keydown",onKey,true);dlg.addEventListener("pointerdown",ev=>{if(ev.target===dlg)close()});dlg.querySelectorAll("[data-x]").forEach(b=>b.onclick=close);
   const box=dlg.querySelector("#spOeImg");const kb=box.querySelector("[data-keep]");if(kb)kb.onclick=()=>{img="";box.querySelector(".spthumb").src=origImg||app.objThumb(orig||o);kb.remove()};
   box.querySelector("input[type=file]").onchange=async ev=>{const file=ev.target.files&&ev.target.files[0];ev.target.value="";if(!file)return;const sb=f.querySelector("[type=submit]");sb.disabled=true;
-    await runUpload(box,file,{book:true},async r=>{img=r.path;box.querySelector(".spthumb").src=r.url});sb.disabled=false};
-  const finish=async t=>{try{app.applyEdits(await OE().load({fresh:true}))}catch(e){}setMsg(M,t);if(after)after();setTimeout(close,600)};
-  const rs=dlg.querySelector("[data-reset]");if(rs)rs.onclick=async()=>{if(!confirmTwice(rs,"Точно? Нажмите ещё раз"))return;rs.disabled=true;try{await OE().remove(id);await finish(orig?"Возвращено как было.":"Предмет удалён.")}catch(e){rs.disabled=false;setMsg(M,msg(e),true)}};
+    await runUpload(box,file,{book:true},async r=>{img=r.path;upl.add(r.path);box.querySelector(".spthumb").src=r.url});sb.disabled=false};
+  /* этап 12: после сохранения открытый 3D-музей перезапускается с правками (посетитель остаётся на месте) */
+  const finish=async t=>{try{app.applyEdits(await OE().load({fresh:true}))}catch(e){}const re=app.remountMuseum?app.remountMuseum():false;setMsg(M,t+(re?" Музей перезапущен с изменениями.":""));if(after)after();setTimeout(close,600)};
+  const rs=dlg.querySelector("[data-reset]");if(rs)rs.onclick=async()=>{if(!confirmTwice(rs,"Точно? Нажмите ещё раз"))return;rs.disabled=true;try{await OE().remove(id);if(ed&&ed.img)B().removeImages([ed.img]).catch(()=>{});await finish(orig?"Возвращено как было.":"Предмет удалён.")}catch(e){rs.disabled=false;setMsg(M,msg(e),true)}};
   f.onsubmit=async ev=>{ev.preventDefault();const name=f.name.value.trim(),ret=f.ret.value,n=+f.n.value,h=f.h.value,hide=f.hide.checked;
     if(!name){setMsg(M,"Нужно название.",true);f.name.focus();return}if(!app.BY[n]){setMsg(M,"Нет записи с таким номером.",true);f.n.focus();return}
     let data;if(orig){data={};if(name!==orig.name)data.name=name;if(ret!==(orig.ret||""))data.ret=ret;if(n!==orig.n)data.n=n;if(h!==orig.h)data.h=h;if(img)data.img=img;if(hide)data.hide=true;if(ed&&ed.pos)data.pos=ed.pos}
     else{data={new:true,name,ret,n,h};if(img)data.img=img;if(hide)data.hide=true;if(ed&&ed.pos)data.pos=ed.pos}
     const b=f.querySelector("[type=submit]");b.disabled=true;
     try{const oid=id||newId();if(orig&&!Object.keys(data).length){if(ed)await OE().remove(oid)}else await OE().save(oid,data);
-      if(ed&&ed.img&&ed.img!==img)B().removeImages([ed.img]).catch(()=>{});
-      await finish("Сохранено. Музей покажет изменения после перезагрузки страницы.")}catch(e){b.disabled=false;setMsg(M,msg(e),true)}};
+      if(ed&&ed.img&&ed.img!==img)B().removeImages([ed.img]).catch(()=>{});upl.delete(img);
+      await finish("Сохранено.")}catch(e){b.disabled=false;setMsg(M,msg(e),true)}};
   f.name.focus()}
 async function cardHook(ov,o){const m=await me();if(!m.owner||!ov.isConnected)return;const head=ov.querySelector(".head");if(!head||head.querySelector("[data-spoe]"))return;
   const b=document.createElement("button");b.type="button";b.className="x";b.dataset.spoe="1";b.textContent="изменить";b.style.cssText="margin:-10px 10px -10px auto;min-height:44px;min-width:44px;padding:0 8px;color:var(--stamp);font-weight:600";b.setAttribute("aria-label","Изменить предмет: "+o.name);

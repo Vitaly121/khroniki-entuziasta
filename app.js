@@ -12,8 +12,8 @@ const OBJ_OF={};OBJS.forEach(o=>(OBJ_OF[o.n]=OBJ_OF[o.n]||[]).push(o));
    Правка: {name, ret, n, h, img, hide, new} — только изменённые поля (форма описана в server/SPACES.md). */
 const OBJ_ORIG=OBJS.map(o=>Object.assign({},o)),ORIGBY=Object.fromEntries(OBJ_ORIG.map(o=>[o.id,o]));
 const OBJ_ALL=OBJS.slice();let OBJ_EDITS={};const EDIMG={};
-const HALL_KEYS=["kv","pr","id","sv","dv","ot","se","n","kl","kr","hb"];
-const hallName=k=>(k==="hb"?"База Героев":(typeof HALLS!=="undefined"&&HALLS[k])||"");
+const HALL_KEYS=["kv","pr","id","sv","dv","ot","se","n","kl","kr","hb","hb2"];
+const hallName=k=>(k==="hb"?"База Героев":k==="hb2"?"База Героев · Б":(typeof HALLS!=="undefined"&&HALLS[k])||"");
 function cleanEdit(e){if(!e||typeof e!=="object")return null;const o={};
   if(typeof e.name==="string"&&e.name.trim())o.name=e.name.trim().slice(0,120);
   if(typeof e.ret==="string")o.ret=e.ret.slice(0,2000);
@@ -37,6 +37,19 @@ function applyEdits(map){map=map||{};OBJ_EDITS={};Object.keys(EDIMG).forEach(k=>
 /* при старте: ждём правки не дольше 1,5 с; опоздавший или неудачный ответ не трогает данные — сайт работает с исходными */
 function loadEdits(){if(!(window.Backend&&Backend.objEdits))return Promise.resolve("none");let late=false;
   return Promise.race([Backend.objEdits.load().then(m=>{if(late)return "late";applyEdits(m);return "ok"}).catch(()=>"failed"),new Promise(r=>setTimeout(()=>{late=true;r("timeout")},1500))]).then(st=>{window.__objEditsState=st;return st})}
+/* этап 12: оформление залов (таблица hall_styles; пишет только админ). Ждём вместе с правками предметов не дольше 1,5 с; при сбое — прежний вид залов */
+let HSTY={};
+function loadHallStyles(){if(!(window.Backend&&Backend.hallStyles))return Promise.resolve("none");let late=false;
+  return Promise.race([Backend.hallStyles.load().then(m=>{if(late)return "late";HSTY=m||{};return "ok"}).catch(()=>"failed"),new Promise(r=>setTimeout(()=>{late=true;r("timeout")},1500))]).then(st=>{window.__hallStylesState=st;return st})}
+const hallStylesFor=()=>{try{return window.Backend&&Backend.hallStyles?Backend.hallStyles.resolve(HSTY):{}}catch(e){return {}}};
+/* редактор оформления — отдельный файл, грузится только у админа по кнопке */
+let hsUiP=null;
+function loadHallUi(){if(!hsUiP)hsUiP=new Promise(res=>{if(window.HallStyleUI)return res(window.HallStyleUI);const sc=document.createElement("script");sc.src="hallstyle.js";sc.onload=()=>res(window.HallStyleUI||null);sc.onerror=()=>{hsUiP=null;res(null)};document.head.appendChild(sc)});return hsUiP}
+/* перезапуск 3D-музея с теми же данными (после правок оформления или предметов): посетитель остаётся на месте */
+let MUS_RESUME=null;
+function remountMuseum(){const m=document.getElementById("mus");if(!m||!m.querySelector(".hallwrap"))return false;const c=m.querySelector(".hallwrap canvas"),z=c&&c.__mz;
+  /* музей ещё не запущен (заставка «Войти»): данные берутся при входе — перезапуск не нужен */
+  if(!z)return true;MUS_RESUME=z.P?{x:+z.P.x,z:+z.P.z,yaw:+z.P.yaw}:{};showMuseum();return true}
 /* пространства посетителей и редакторы — отдельный файл, грузится только при подключённом сервере */
 let spacesP=null;
 function loadSpaces(){if(!(window.Backend&&Backend.spaces))return Promise.resolve(null);
@@ -557,7 +570,7 @@ function showHome(){
   function showTip(p,x,y){tip.hidden=false;tip.style.left=x+"px";tip.style.top=y+"px";
     if(p.t==="e"){const line=(p.e.seg.find(s=>s.t)||{t:""}).t.split(/(?<=[.!?…])\s/)[0].slice(0,150);tip.innerHTML=`<b>${lab(p.e.n)} · ${esc(p.e.t)}</b><small>${esc(GROUPS[p.k].name)} · ${esc(BLOCKS[p.e.b]?BLOCKS[p.e.b][0]:"")}</small><span>${esc(line)}</span>`}
     else if(p.t==="c")tip.innerHTML=`<b>${esc(p.ch.name)}</b><small>${p.ch.ai?"копия · отвечает из базы":"чат"}</small><span>${esc(p.ch.sub||"")}</span>`;
-    else if(p.t==="o")tip.innerHTML=`${p.ph?`<img src="${p.ph}" alt="">`:""}<b>${esc(p.o.name)}</b><small>${esc(HALLS[p.o.h]||"")} · запись ${lab(p.o.n)}</small>`;
+    else if(p.t==="o")tip.innerHTML=`${p.ph?`<img src="${p.ph}" alt="">`:""}<b>${esc(p.o.name)}</b><small>${esc(hallName(p.o.h))} · запись ${lab(p.o.n)}</small>`;
     else if(p.t==="r")tip.innerHTML=`<b>След читателя</b><small>к записи ${lab(p.n)} · ${esc(BY[p.n].t)}</small><span>${esc(p.tr.text)}</span>`;
     else tip.innerHTML=`<b>${esc(p.it.title)}</b><small>${esc(p.it.by||"")}${p.it.year?" · "+p.it.year:""}</small>`;
     if(phone()){tip.insertAdjacentHTML("beforeend",`<button type="button" class="eopen">${p.t==="e"||p.t==="r"?"Читать запись":p.t==="c"?"Открыть чат":p.t==="o"?"Посмотреть предмет":"Открыть «Звук и кадр»"} →</button>`);tip.querySelector(".eopen").onclick=()=>activate(p)}}
@@ -1198,25 +1211,27 @@ function showMuseum(tab){
   {const mh=view.firstElementChild&&view.querySelector(".page-head");withSpaces(S=>S.museumHook&&mh&&mh.isConnected&&S.museumHook(view))}
   const m=$("#mus");
   if(musTab==="swipe"){
-    const hs=Object.keys(HALLS).filter(k=>OBJS.some(o=>o.h===k));
+    const hs=[...Object.keys(HALLS),"hb","hb2"].filter(k=>OBJS.some(o=>o.h===k));
     m.innerHTML=`<div class="halls" id="hl">${hs.map((k,i)=>{const list=OBJS.filter(o=>o.h===k).sort((a,b)=>(imgOf(b.id)?1:0)-(imgOf(a.id)?1:0)||a.n-b.n);
-      return `<section class="hall" aria-label="${esc(HALLS[k])}"><div class="hhead"><span class="eyebrow">Зал ${i+1} из ${hs.length} · ${list.length} предметов</span><h3>${esc(HALLS[k])}</h3></div>
+      return `<section class="hall" aria-label="${esc(hallName(k))}"><div class="hhead"><span class="eyebrow">Зал ${i+1} из ${hs.length} · ${list.length} предметов</span><h3>${esc(hallName(k))}</h3></div>
        <div class="hgrid">${list.slice(0,24).map(o=>`<button type="button" class="obj" data-obj="${o.id}"><img class="ph" alt="${esc(o.name)}" loading="lazy" src="${objThumb(o)}"><span class="cap"><b>${esc(o.name)}</b><span>запись ${lab(o.n)}</span></span></button>`).join("")}</div>
        ${list.length>24?`<button type="button" class="chip" data-hall="${k}">Весь зал в каталоге · ${list.length} →</button>`:""}</section>`}).join("")}</div>
-      <div class="hdots">${hs.map((k,i)=>`<button type="button" data-hi="${i}" aria-label="${esc(HALLS[k])}"></button>`).join("")}</div>`;
+      <div class="hdots">${hs.map((k,i)=>`<button type="button" data-hi="${i}" aria-label="${esc(hallName(k))}"></button>`).join("")}</div>`;
     const hl=$("#hl"),dots=[...m.querySelectorAll("[data-hi]")];const mark=()=>{const i=Math.round(hl.scrollLeft/hl.clientWidth);dots.forEach((d,j)=>d.setAttribute("aria-current",i===j))};
     hl.addEventListener("scroll",()=>requestAnimationFrame(mark),{passive:true});mark();
     dots.forEach((d,i)=>d.onclick=()=>hl.scrollTo({left:i*hl.clientWidth,behavior:"smooth"}));
     m.querySelectorAll("[data-hall]").forEach(b=>b.onclick=()=>{catHall=b.dataset.hall;catN=60;showMuseum("cat")});
   } else if(musTab==="cat"){
-    m.innerHTML=`<div class="tools"><div class="seg" role="group" aria-label="Зал">${[["all","Все"],...Object.entries(HALLS)].map(([k,t])=>`<button type="button" data-ch="${k}" aria-pressed="${catHall===k}">${esc(t)}</button>`).join("")}</div><input type="search" id="cq" placeholder="Поиск предмета" value="${esc(catQ)}" aria-label="Поиск предмета"></div><div class="cat" id="cg"></div><div style="margin-top:16px" id="more"></div>`;
+    m.innerHTML=`<div class="tools"><div class="seg" role="group" aria-label="Зал">${[["all","Все"],...Object.entries(HALLS),...["hb","hb2"].filter(k=>OBJS.some(o=>o.h===k)).map(k=>[k,hallName(k)])].map(([k,t])=>`<button type="button" data-ch="${k}" aria-pressed="${catHall===k}">${esc(t)}</button>`).join("")}</div><input type="search" id="cq" placeholder="Поиск предмета" value="${esc(catQ)}" aria-label="Поиск предмета"></div><div class="cat" id="cg"></div><div style="margin-top:16px" id="more"></div>`;
     const draw=()=>{const q=catQ.toLowerCase();const list=OBJS.filter(o=>(catHall==="all"||o.h===catHall)&&(!q||(o.name+" "+o.ret).toLowerCase().includes(q)));
       $("#cg").innerHTML=list.slice(0,catN).map(o=>`<button type="button" class="obj" data-obj="${o.id}"><img class="ph" alt="${esc(o.name)}" loading="lazy" src="${objThumb(o)}"><span class="cap"><b>${esc(o.name)}</b><span>${esc(hallName(o.h))} · запись ${lab(o.n)}${found.has(o.id)?" · найден":""}</span></span></button>`).join("")||`<p class="hint">Ничего не нашлось.</p>`;
       $("#more").innerHTML=list.length>catN?`<button class="chip" type="button" id="mr">Показать ещё · осталось ${list.length-catN}</button>`:"";if($("#mr"))$("#mr").onclick=()=>{catN+=60;draw()}};
     draw();m.querySelectorAll("[data-ch]").forEach(b=>b.onclick=()=>{catHall=b.dataset.ch;catN=60;m.querySelectorAll("[data-ch]").forEach(x=>x.setAttribute("aria-pressed",x===b));draw()});
     $("#cq").oninput=ev=>{catQ=ev.target.value;catN=60;draw()};
   } else {
-    if(window.Museum){const stop=Museum.mount(m,{objs:OBJS,book:BY,halls:HALLS,thumb:objThumb,photo:id=>imgOf(id),paint:PAINT,texUrl:n=>TEXIMG.has(n)?`img/tx_${n}.webp`:null,onObj:id=>showObj(id),onOpen:n=>openUnit(n),multi:window.Live?Live.museum():null,
+    const resume=MUS_RESUME;MUS_RESUME=null;
+    if(window.Museum){const stop=Museum.mount(m,{objs:OBJS,book:BY,halls:HALLS,get hallStyles(){return hallStylesFor()},resume:resume&&isFinite(resume.x)?resume:null,autostart:!!resume,
+      hallEdit:window.Backend&&Backend.hallStyles?{can:()=>Backend.isAdmin(),open:k=>loadHallUi().then(H=>H&&H.open(k==="hb2"?"hb":k))}:null,thumb:objThumb,photo:id=>imgOf(id),paint:PAINT,texUrl:n=>TEXIMG.has(n)?`img/tx_${n}.webp`:null,onObj:id=>showObj(id),onOpen:n=>openUnit(n),multi:window.Live?Live.museum():null,
       /* этап 8, часть 2: лифт на этажи посетителей и расстановка предметов автором сайта (только при подключённом сервере) */
       lift:window.Backend&&Backend.spaces?{go:t=>withSpaces(S=>S.liftGo&&S.liftGo(t))}:null,
       placeBook:window.Backend&&Backend.objEdits?{can:()=>Backend.spaces.me().then(m=>!!m.owner).catch(()=>false),save:(id,pos)=>Backend.objEdits.setPos(id,pos).then(r=>{const o=OBJBY[id];if(o){if(pos)o.pos=r.data&&r.data.pos;else delete o.pos}if(r.data)OBJ_EDITS[id]=r.data;else delete OBJ_EDITS[id];return r}),msg:e=>Backend.spaces.message(e)}:null});cleanup.push(stop);if(window.Live){const off=Live.panel(m,()=>window.__curHall||"");cleanup.push(off)}}
@@ -1333,7 +1348,7 @@ const TEXT=new Promise(res=>{if(window.BOOKTEXT)return res();const s=document.cr
 function whenText(fn){return function(...args){if(window.__textReady)return fn.apply(this,args);clearView();view.innerHTML=`<p class="hint loading">Загружаются записи…</p>`;TEXT.then(()=>fn.apply(this,args))}}
 openUnit=(f=>function(n,...r){setHash("e"+n);return f.call(this,n,...r)})(whenText(openUnit));showSame=whenText(showSame);showFeed=whenText(showFeed);showVoices=whenText(showVoices);showVoice=whenText(showVoice);showMap=whenText(showMap);showMsgs=whenText(showMsgs);showTally=whenText(showTally);showSearch=whenText(showSearch);showPosts=whenText(showPosts);
 window.__APP={texUrl:n=>TEXIMG.has(n)?`img/tx_${n}.webp`:null,GROUPS,group,ORDER,BLOCKS,BOOK,BY,OBJS,HALLS,esc,view,clearView,setNav,showMuseum,openUnit,showObj,go,lab,imgOf,objThumb,getSampler,NET,cleanup:()=>cleanup,whenText,
-  OBJ_ALL,OBJ_ORIG,ORIGBY,HALL_KEYS,hallName,edits:()=>OBJ_EDITS,applyEdits,loadSpaces,spaces:withSpaces,setHash,lightbox};document.dispatchEvent(new Event("appready"));
+  OBJ_ALL,OBJ_ORIG,ORIGBY,HALL_KEYS,hallName,edits:()=>OBJ_EDITS,applyEdits,loadSpaces,hallStyles:()=>HSTY,setHallStyles:m=>{HSTY=m&&typeof m==="object"?m:{}},remountMuseum,loadHallUi,spaces:withSpaces,setHash,lightbox};document.dispatchEvent(new Event("appready"));
 if(window.Backend&&Backend.spaces)loadSpaces();
-loadEdits().then(()=>route(h));
+Promise.all([loadEdits(),loadHallStyles()]).then(()=>route(h));
 })();

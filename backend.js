@@ -153,19 +153,19 @@ async function spDecode(file){
   if(window.createImageBitmap){try{return await createImageBitmap(file,{imageOrientation:"from-image"})}catch(e){}}
   return await new Promise((res,rej)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{URL.revokeObjectURL(u);res(im)};im.onerror=()=>{URL.revokeObjectURL(u);rej(spFail("broken_image"))};im.src=u})}
 const spBlob=(c,type,q)=>new Promise(r=>c.toBlob(b=>r(b),type,q));
-async function spPrepare(file,onProgress){
+async function spPrepare(file,onProgress,lim){lim=lim||{};const MAXS=lim.maxSide||SP_LIM.maxSide,TGT=lim.targetBytes||SP_LIM.targetBytes;
   if(!file||typeof file.size!=="number")throw spFail("bad_type");
   if(SP_LIM.types.indexOf(String(file.type).toLowerCase())<0)throw spFail("bad_type");
   if(file.size>SP_LIM.fileBytes)throw spFail("too_large");
   if(onProgress)onProgress({stage:"prepare",p:.1});
   let bm;try{bm=await spDecode(file)}catch(e){throw spFail("broken_image")}
   const W0=bm.width||bm.naturalWidth,H0=bm.height||bm.naturalHeight;if(!W0||!H0)throw spFail("broken_image");
-  let k=Math.min(1,SP_LIM.maxSide/Math.max(W0,H0)),out=null,type="image/webp";
+  let k=Math.min(1,MAXS/Math.max(W0,H0)),out=null,type="image/webp";
   for(let pass=0;pass<5&&!out;pass++){const w=Math.max(1,Math.round(W0*k)),h=Math.max(1,Math.round(H0*k));
     const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d");
     g.fillStyle="#ffffff";g.fillRect(0,0,w,h);g.drawImage(bm,0,0,w,h);
     for(const q of [.86,.76,.64,.52]){let b=await spBlob(c,"image/webp",q);if(!b||b.type!=="image/webp"){b=await spBlob(c,"image/jpeg",q);type="image/jpeg"}else type="image/webp";
-      if(b&&b.size<=SP_LIM.targetBytes){out={blob:b,w,h,type};break}}
+      if(b&&b.size<=TGT){out={blob:b,w,h,type};break}}
     k*=.8}
   if(bm.close)try{bm.close()}catch(e){}
   if(!out)throw spFail("too_large");
@@ -180,7 +180,7 @@ async function spUpload(file,opts){opts=opts||{};const me=await spNeedMe();const
   await spRun(sb.storage.from("spaces").upload(path,prep.blob,{contentType:prep.type,cacheControl:"31536000",upsert:false}));
   if(onP)onP({stage:"done",p:1});
   return {path,url:spUrl(path),w:prep.w,h:prep.h,bytes:prep.blob.size,type:prep.type}}
-async function spRemoveFiles(paths){const ps=[...new Set((paths||[]).filter(spPathOk))];if(!ps.length)return {requested:0,removed:0};
+async function spRemoveFiles(paths){const ps=[...new Set((paths||[]).filter(p=>spPathOk(p)||(typeof p==="string"&&/^halls\/[a-z]{1,3}\/[A-Za-z0-9_-]{4,80}\.(webp|jpg|png)$/.test(p))))];if(!ps.length)return {requested:0,removed:0};
   const sb=await client();const d=await spRun(sb.storage.from("spaces").remove(ps));return {requested:ps.length,removed:Array.isArray(d)?d.length:0}}
 
 /* room: общие поля комнаты (форма описана в server/SPACES.md) */
@@ -292,7 +292,59 @@ const objEdits={
     if(!Object.keys(data).length){if(cur&&cur.length)await objEdits.remove(id);oeP=null;return {id,data:null}}
     const r=await objEdits.save(id,data);return {id,data:r.data}}
 };
-window.Backend={login,logout,configured:true,guest:!hasSes,spaces,objEdits};
+/* ---------- этап 12: оформление залов музея книги (таблица hall_styles, server/schema3.sql; форма data — server/SPACES.md) ----------
+   Читают все, пишет только админ (решает база). Картинки — бакет spaces, папка halls/<код зала>/. */
+const HS_IDS=["kv","pr","id","sv","dv","ot","se","n","kl","kr","hb"];
+const HS_LIM={paintings:12,bytes:7000,maxSide:2048,targetBytes:1200*1024};
+const hsPathOk=(p,k)=>typeof p==="string"&&p.length<=300&&/^halls\/(kv|pr|id|sv|dv|ot|se|n|kl|kr|hb)\/[A-Za-z0-9_-]{4,80}\.(webp|jpg|png)$/.test(p)&&(!k||p.split("/")[1]===k);
+const hsSiteOk=p=>typeof p==="string"&&p.length<=200&&/^img\/[A-Za-z0-9_\-/]+\.(webp|jpg|jpeg|png)$/.test(p)&&p.indexOf("..")<0;
+const hsImgOk=(p,k)=>hsPathOk(p,k)||hsSiteOk(p);
+function hsUrl(p){return hsPathOk(p)?C.supabaseUrl.replace(/\/$/,"")+"/storage/v1/object/public/spaces/"+p:hsSiteOk(p)?p:""}
+const hsNum=(v,a,b,d)=>{v=+v;return isFinite(v)?Math.max(a,Math.min(b,+v.toFixed(2))):d};
+function hsSurf(s,k){if(!s||typeof s!=="object"||Array.isArray(s))return null;const o={};if(SP_HEX.test(s.color||""))o.color=s.color.toUpperCase();if(hsImgOk(s.img,k))o.img=s.img;
+  if(!o.color&&!o.img)return null;o.mode=s.mode==="stretch"?"stretch":"tile";return o}
+/* нормализация: неверное и лишнее отбрасывается; пусто → {} (= прежний вид зала) */
+function hsNorm(d,k){d=d&&typeof d==="object"&&!Array.isArray(d)?d:{};const o={};
+  ["wall","floor","ceil"].forEach(n=>{const x=hsSurf(d[n],k);if(x)o[n]=x});
+  if(Array.isArray(d.paintings)){const P=[];d.paintings.forEach(p=>{if(P.length>=HS_LIM.paintings||!p||typeof p!=="object"||!hsImgOk(p.img,k))return;
+      P.push({img:p.img,title:typeof p.title==="string"?p.title.trim().slice(0,120):"",wall:["n","s","e","w"].indexOf(p.wall)>=0?p.wall:"n",u:hsNum(p.u,-40,40,0),w:hsNum(p.w,.2,6,1.4),h:hsNum(p.h,.2,6,1.05),y:hsNum(p.y,.3,8,1.5)})});
+    if(P.length)o.paintings=P}
+  if(["warm","cool","neutral"].indexOf(d.light)>=0)o.light=d.light;
+  if(typeof d.note==="string"&&d.note.trim())o.note=d.note.trim().slice(0,300);
+  return o}
+const hsImgs=d=>{d=d||{};const a=[];["wall","floor","ceil"].forEach(n=>{if(d[n]&&d[n].img)a.push(d[n].img)});(d.paintings||[]).forEach(p=>a.push(p.img));return a.filter(p=>hsPathOk(p))};
+/* для музея: те же данные, но img — готовый адрес */
+function hsResolve(map){const out={};Object.keys(map||{}).forEach(k=>{if(HS_IDS.indexOf(k)<0)return;const d=hsNorm(map[k],k),r=JSON.parse(JSON.stringify(d));
+  ["wall","floor","ceil"].forEach(n=>{if(r[n]&&r[n].img)r[n].img=hsUrl(r[n].img)});(r.paintings||[]).forEach(p=>p.img=hsUrl(p.img));if(Object.keys(r).length)out[k]=r});return out}
+let hsP=null;
+async function hsNeedAdmin(){const me=await spNeedMe();if(!me.owner)throw spFail("not_permitted");return me}
+const hallStyles={
+  IDS:HS_IDS,LIMITS:HS_LIM,url:hsUrl,pathOk:hsPathOk,imgOk:hsImgOk,norm:hsNorm,resolve:hsResolve,images:hsImgs,
+  load(opts){opts=opts||{};if(hsP&&!opts.fresh)return hsP;hsP=(async()=>{const sb=await client();const d=await spRun(sb.from("hall_styles").select("id,data,updated_at").limit(50));const out={};
+      (d||[]).forEach(r=>{if(r&&HS_IDS.indexOf(r.id)>=0&&r.data&&typeof r.data==="object"){const n=hsNorm(r.data,r.id);if(Object.keys(n).length)out[r.id]=n}});return out})();
+    hsP.catch(()=>{hsP=null});return hsP},
+  /* сохранить оформление зала; пустое — удалить строку. Картинки, которые больше не нужны, удаляются из хранилища */
+  async save(id,data){const me=await hsNeedAdmin();id=String(id);if(HS_IDS.indexOf(id)<0)throw spFail("invalid");const nd=hsNorm(data,id);
+    if(!Object.keys(nd).length)return hallStyles.remove(id);if(JSON.stringify(nd).length>HS_LIM.bytes)throw spFail("invalid");const sb=await client();
+    const ex=await spRun(sb.from("hall_styles").select("id,data").eq("id",id).limit(1));
+    const d=await spRun(ex&&ex.length?sb.from("hall_styles").update({data:nd}).eq("id",id).select("id,data"):sb.from("hall_styles").insert({id,data:nd}).select("id,data"));
+    if(!d||!d.length)throw spFail("not_permitted");hsP=null;
+    const keep=new Set(hsImgs(nd)),old=ex&&ex[0]?hsImgs(ex[0].data).filter(p=>!keep.has(p)):[];if(old.length)spRemoveFiles(old).catch(()=>{});
+    return {id,data:hsNorm(d[0].data,id)}},
+  async remove(id){await hsNeedAdmin();id=String(id);const sb=await client();const ex=await spRun(sb.from("hall_styles").select("id,data").eq("id",id).limit(1));
+    const d=await spRun(sb.from("hall_styles").delete().eq("id",id).select("id"));hsP=null;
+    if(ex&&ex[0]&&d&&d.length){const old=hsImgs(ex[0].data);if(old.length)spRemoveFiles(old).catch(()=>{})}
+    if(ex&&ex.length&&!(d&&d.length))throw spFail("not_permitted");return {id,removed:(d||[]).length}},
+  /* картинка для зала: проверка, уменьшение до 2048 px, WebP/JPEG ≤ ~1,2 МБ, папка halls/<зал>/ */
+  async uploadImage(file,hall,opts){opts=opts||{};await hsNeedAdmin();hall=String(hall);if(HS_IDS.indexOf(hall)<0)throw spFail("invalid");const onP=opts.onProgress;
+    const prep=await spPrepare(file,onP,{maxSide:HS_LIM.maxSide,targetBytes:HS_LIM.targetBytes});
+    const path="halls/"+hall+"/"+spRand()+(prep.type==="image/webp"?".webp":".jpg");if(onP)onP({stage:"upload",p:.5});
+    const sb=await client();await spRun(sb.storage.from("spaces").upload(path,prep.blob,{contentType:prep.type,cacheControl:"31536000",upsert:false}));
+    if(onP)onP({stage:"done",p:1});return {path,url:hsUrl(path),w:prep.w,h:prep.h,bytes:prep.blob.size,type:prep.type}},
+  removeImages(paths){return spRemoveFiles((paths||[]).filter(p=>hsPathOk(p)))}
+};
+const isAdmin=()=>spMe().then(m=>!!m.owner).catch(()=>false);
+window.Backend={login,logout,configured:true,guest:!hasSes,spaces,objEdits,hallStyles,isAdmin};
 /* кнопка «Войти» в шапке и в подсказках открывает окно входа, а не Claude */
 document.addEventListener("click",ev=>{const a=ev.target.closest&&ev.target.closest(".whoin");if(a){ev.preventDefault();login()}},true);
 /* «Выйти» в подвале */

@@ -276,6 +276,7 @@ const CSS=`.hallwrap .mz-lift{position:absolute;inset:0;z-index:30;display:flex;
 .hallwrap .mz-title.on{opacity:1}
 .hallwrap .mz-title b{display:block;font:500 clamp(30px,4.4vw,52px)/1.1 var(--f-body,Georgia),serif}
 .hallwrap .mz-title small{display:block;margin-top:8px;font:600 11.5px/1.3 var(--f-mono,monospace);letter-spacing:.1em;text-transform:uppercase}
+.hallwrap .mz-title small.mz-hsnote{font:400 15px/1.4 var(--f-body,Georgia),serif;letter-spacing:0;text-transform:none;max-width:44ch;margin:8px auto 0}
 .hallwrap .mz-fstop{position:absolute;right:12px;top:calc(12px + var(--mz-top,0px))}
 .hallwrap .mz-map{position:absolute;right:12px;top:calc(56px + var(--mz-top,0px));pointer-events:auto;background:rgba(10,12,14,.76);border:1px solid rgba(255,255,255,.18);border-radius:8px;overflow:hidden;color:#E9EDF0}
 .hallwrap .mz-map-t{display:flex;align-items:center;gap:6px;width:100%;min-height:26px;padding:4px 10px;border:0;background:transparent;color:inherit;font:600 11px/1 var(--f-mono,monospace);letter-spacing:.06em;cursor:pointer;text-align:left}
@@ -501,6 +502,19 @@ function figKit(T,shadowTex){
   return {FG,FM,figure,dispose}}
 
 /* ---------- сборка ---------- */
+/* этап 12: оформление залов книги (данные hall_styles; форма — server/SPACES.md). Проверка при чтении: неверное отбрасывается, зал не ломается */
+const HS_K=["kv","pr","id","sv","dv","ot","se","n","kl","kr","hb"];
+const hsUrlOk=u=>typeof u==="string"&&u.length<=600&&u.indexOf("..")<0&&/^(https:\/\/[A-Za-z0-9.\-]+(:\d+)?\/[^\s"'<>()\\]*|img\/[A-Za-z0-9_\-\/.]+)$/.test(u);
+const hsN=(v,a,b,d)=>{v=+v;return isFinite(v)?Math.max(a,Math.min(b,v)):d};
+function hsValid(m){const out={};if(!m||typeof m!=="object")return out;HS_K.forEach(k=>{const d=m[k];if(!d||typeof d!=="object"||Array.isArray(d))return;const o={};
+  ["wall","floor","ceil"].forEach(p=>{const s=d[p];if(!s||typeof s!=="object")return;const c=/^#[0-9a-fA-F]{6}$/.test(s.color||"")?s.color:null,img=hsUrlOk(s.img)?s.img:null;if(c||img)o[p]={color:c,img,mode:s.mode==="stretch"?"stretch":"tile"}});
+  if(Array.isArray(d.paintings)){const P=d.paintings.filter(p=>p&&typeof p==="object"&&hsUrlOk(p.img)).slice(0,12).map(p=>({img:p.img,title:typeof p.title==="string"?p.title.slice(0,120):"",wall:typeof p.wall==="string"&&p.wall.length===1&&"nsew".indexOf(p.wall)>=0?p.wall:"n",u:hsN(p.u,-40,40,0),w:hsN(p.w,.2,6,1.4),h:hsN(p.h,.2,6,1.05),y:hsN(p.y,.3,8,1.5)}));if(P.length)o.paintings=P}
+  if(["warm","cool","neutral"].indexOf(d.light)>=0)o.light=d.light;if(typeof d.note==="string"&&d.note.trim())o.note=d.note.trim().slice(0,300);
+  if(Object.keys(o).length)out[k]=o});return out}
+/* место картины на стене длиной L и высотой H: размер и сдвиг ограничены стеной; если картина перекрывает проём (dr=[ширина,высота,сдвиг]) — отодвигается вбок, а если сбоку не помещается — поднимается над проёмом */
+function hsFit(p,L,H,dr){const w=Math.min(p.w,L-.3),h=Math.min(p.h,H-.4),lo=-L/2+w/2+.1,hi_=L/2-w/2-.1;let u=Math.max(lo,Math.min(hi_,p.u)),y=Math.max(h/2+.1,Math.min(H-h/2-.1,p.y));
+  if(dr&&Math.abs(u-dr[2])<(w+dr[0])/2+.1&&y-h/2<dr[1]+.05){const a=dr[2]-(dr[0]+w)/2-.15,b=dr[2]+(dr[0]+w)/2+.15,c=[a,b].filter(x=>x>=lo&&x<=hi_).sort((x,z)=>Math.abs(x-u)-Math.abs(z-u));
+    if(c.length)u=c[0];else if(dr[1]+h+.2<=H-.1)y=dr[1]+h/2+.1}return {u,y,w,h}}
 function mount(host,opt){
   const T=window.THREE;
   /* этап 8, часть 2: opt.world — этаж посетителей вместо музея книги (тот же движок); без него — музей книги, как раньше */
@@ -871,6 +885,9 @@ function mount(host,opt){
     const contact=(x,z,w,d)=>{const p=new T.Mesh(new T.PlaneGeometry(w,d),new T.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false}));p.rotation.x=-Math.PI/2;p.position.set(x,.012,z);S.add(p);contacts.push(p)};
     const imgOnto=(c,url)=>{if(!url)return;const im=new Image();im.onload=()=>{const g=c.getContext("2d"),W=c.width,H=c.height,s=Math.max(W/im.width,H/im.height),w=im.width*s,h=im.height*s;g.drawImage(im,(W-w)/2,(H-h)/2,w,h);if(c.__tex)c.__tex.needsUpdate=true};im.src=url};
     const PAINT=opt.paint||{};const pick_=(k,i)=>{const a=PAINT[k]||[];return a.length?a[i%a.length]:null};
+    /* этап 12: оформление залов. HS — проверенные стили; HSS — поверхности (стены, пол, потолок) зала для замены материала; hsP_(k) — у зала свои картины (прежние картины зала не строятся) */
+    const HS=BOOK?hsValid(opt.hallStyles):{},HSS=[],HS_T={};Object.keys(HS).forEach(k=>{const l=HS[k].light;if(l)HS_T[k]=l==="warm"?[1.06,.97,.84]:l==="cool"?[.88,.96,1.08]:"n"});
+    const hsSlot=(k,part,mesh,face)=>{if(HS[k]&&HS[k][part])HSS.push({k,part,mesh,face:face==null?-1:face})},hsP_=k=>!!(HS[k]&&HS[k].paintings);
 /* картины и тексты под светом зала получают немного самосвечения: в тёмных залах они остаются читаемыми */
 const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c.__tex=t;const m=new T.Mesh(new T.PlaneGeometry(w,h),basic?new T.MeshBasicMaterial({map:t}):new T.MeshLambertMaterial({map:t,emissive:0xffffff,emissiveMap:t,emissiveIntensity:AIR[HALLZ[hallAt(z)].k].em}));m.position.set(x,y,z);m.rotation.y=ry;S.add(m);return m};
 
@@ -879,7 +896,7 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
     (BOOK?SPEC:[]).forEach((s,i)=>{
       const z0=z,z1=z-s.D,H=s.tall?8.5:(s.k==="pr"||s.k==="sv"||s.k==="dv"?4.6:4.2),A=AIR[s.k];HALLZ.push({...s,z0,z1,H,cz:(z0+z1)/2,pools:[]});
       const fl=new T.Mesh(new T.PlaneGeometry(HW*2,s.D,sg(HW*2),sg(s.D)),bmat({map:tex(s.floor,"",[HW/2,s.D/4])}));fl.rotation.x=-Math.PI/2;fl.position.set(0,0,(z0+z1)/2);S.add(fl);floors.push(fl);surf.push(fl);
-      const ce=new T.Mesh(new T.PlaneGeometry(HW*2,s.D,sg(HW*2),sg(s.D)),bmat({color:new T.Color(s.ceil)}));surf.push(ce);
+      const ce=new T.Mesh(new T.PlaneGeometry(HW*2,s.D,sg(HW*2),sg(s.D)),bmat({color:new T.Color(s.ceil)}));surf.push(ce);hsSlot(s.k,"floor",fl);hsSlot(s.k,"ceil",ce);
       /* светильники на потолке: светящиеся панели + пятна света под ними */
       if(!s.tall&&s.k!=="sv"){const wide=s.k==="kl"||s.k==="id"||s.k==="n";const fx=new T.MeshBasicMaterial({color:s.k==="dv"?0x7FE0C8:s.k==="n"?0x2A1614:s.k==="ot"?0xFFCB8E:wide?0xF7FAFF:0xFFF1D6}),fxR=new T.MeshBasicMaterial({color:0xFF5A3C});
         for(let q=0;q<Math.floor(s.D/5);q++)[-3.5,3.5].forEach((xx,j)=>{const red=s.k==="kl"&&(q+j)%2===0;const f=new T.Mesh(new T.PlaneGeometry(wide?2.2:.7,wide?.35:.7),red?fxR:fx);f.rotation.x=Math.PI/2;f.position.set(xx,H-.01,z0-2.5-q*5);S.add(f);
@@ -890,28 +907,28 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
       if(i===0){/* этап 9: в левой стене «Квартир» — проём в коридор квартир (зеркально проёму в «Базу»), UV — как у целой стены */
         const wpl=(za,zb,ya,yb)=>{const L=zb-za,hh=yb-ya,g=new T.PlaneGeometry(L,hh,sg(L),Math.max(2,sg(hh))),uv=g.attributes.uv;
           for(let q=0;q<uv.count;q++)uv.setXY(q,(z0-zb)/s.D+uv.getX(q)*L/s.D,ya/H+uv.getY(q)*hh/H);
-          const p=new T.Mesh(g,wm);p.rotation.y=Math.PI/2;p.position.set(-HW,(ya+yb)/2,(za+zb)/2);S.add(p);camBlock.push(p);surf.push(p)};
+          const p=new T.Mesh(g,wm);p.rotation.y=Math.PI/2;p.position.set(-HW,(ya+yb)/2,(za+zb)/2);S.add(p);camBlock.push(p);surf.push(p);hsSlot(s.k,"wall",p)};
         const la=CORR.DZ-CORR.DW,lb=CORR.DZ+CORR.DW;wpl(z1,la,0,H);wpl(lb,z0,0,H);wpl(la,lb,CORR.DH,H);
         box(.04,.16,la-z1,base,-HW+.02,.08,(z1+la)/2);box(.04,.16,z0-lb,base,-HW+.02,.08,(lb+z0)/2)}
       else{const wl=new T.Mesh(new T.PlaneGeometry(s.D,H,sg(s.D),Math.max(4,sg(H))),wm);wl.rotation.y=Math.PI/2;wl.position.set(-HW,H/2,(z0+z1)/2);S.add(wl);
-        camBlock.push(wl);surf.push(wl);box(.04,.16,s.D,base,-HW+.02,.08,(z0+z1)/2)}
+        camBlock.push(wl);surf.push(wl);hsSlot(s.k,"wall",wl);box(.04,.16,s.D,base,-HW+.02,.08,(z0+z1)/2)}
       if(i===BASE_HALL){/* этап 6/11: в правой стене «Предметов» — проём в «Базу Героев»: два куска стены и перемычка, UV — как у целой стены */
         const wpc=(za,zb,ya,yb)=>{const L=zb-za,hh=yb-ya,g=new T.PlaneGeometry(L,hh,sg(L),Math.max(2,sg(hh))),uv=g.attributes.uv;
           for(let q=0;q<uv.count;q++)uv.setXY(q,(za-z1)/s.D+uv.getX(q)*L/s.D,ya/H+uv.getY(q)*hh/H);
-          const p=new T.Mesh(g,wm);p.rotation.y=-Math.PI/2;p.position.set(HW,(ya+yb)/2,(za+zb)/2);S.add(p);camBlock.push(p);surf.push(p)};
+          const p=new T.Mesh(g,wm);p.rotation.y=-Math.PI/2;p.position.set(HW,(ya+yb)/2,(za+zb)/2);S.add(p);camBlock.push(p);surf.push(p);hsSlot(s.k,"wall",p)};
         const da=BASE.DZ-BASE.DW,db=BASE.DZ+BASE.DW;wpc(z1,da,0,H);wpc(db,z0,0,H);wpc(da,db,BASE.DH,H);
         box(.04,.16,da-z1,base,HW-.02,.08,(z1+da)/2);box(.04,.16,z0-db,base,HW-.02,.08,(db+z0)/2)}
-      else{const wr=new T.Mesh(new T.PlaneGeometry(s.D,H,sg(s.D),Math.max(4,sg(H))),wm);wr.rotation.y=-Math.PI/2;wr.position.set(HW,H/2,(z0+z1)/2);S.add(wr);camBlock.push(wr);surf.push(wr);
+      else{const wr=new T.Mesh(new T.PlaneGeometry(s.D,H,sg(s.D),Math.max(4,sg(H))),wm);wr.rotation.y=-Math.PI/2;wr.position.set(HW,H/2,(z0+z1)/2);S.add(wr);camBlock.push(wr);surf.push(wr);hsSlot(s.k,"wall",wr);
         box(.04,.16,s.D,base,HW-.02,.08,(z0+z1)/2)}
       /* перегородка в конце зала с проёмом */
       const pm=bmat({map:tex(s.tex,s.wall,[2,H/3])});tintMat(pm,pm.map,s.wall);const endFull=i===SPEC.length-1;
-      if(endFull){const e=new T.Mesh(new T.PlaneGeometry(HW*2,H,sg(HW*2),Math.max(4,sg(H))),pm);e.position.set(0,H/2,z1);S.add(e);camBlock.push(e);surf.push(e)}
-      else{const nH=Math.max(H,HALLZ[i]?H:H);[-1,1].forEach(sgn=>{const w=HW-1.5;const p=new T.Mesh(new T.BoxGeometry(w,nH,.3,sg(w),Math.max(4,sg(nH)),1),pm);p.position.set(sgn*(1.5+w/2),nH/2,z1);S.add(p);camBlock.push(p);surf.push(p)});
-        const lint=new T.Mesh(new T.BoxGeometry(3,nH-3,.3,2,2,1),pm);lint.position.set(0,3+(nH-3)/2,z1);S.add(lint);camBlock.push(lint);surf.push(lint);
+      if(endFull){const e=new T.Mesh(new T.PlaneGeometry(HW*2,H,sg(HW*2),Math.max(4,sg(H))),pm);e.position.set(0,H/2,z1);S.add(e);camBlock.push(e);surf.push(e);hsSlot(s.k,"wall",e)}
+      else{const nH=Math.max(H,HALLZ[i]?H:H);[-1,1].forEach(sgn=>{const w=HW-1.5;const p=new T.Mesh(new T.BoxGeometry(w,nH,.3,sg(w),Math.max(4,sg(nH)),1),pm);p.position.set(sgn*(1.5+w/2),nH/2,z1);S.add(p);camBlock.push(p);surf.push(p);hsSlot(s.k,"wall",p,4);hsSlot(SPEC[i+1].k,"wall",p,5)});
+        const lint=new T.Mesh(new T.BoxGeometry(3,nH-3,.3,2,2,1),pm);lint.position.set(0,3+(nH-3)/2,z1);S.add(lint);camBlock.push(lint);surf.push(lint);hsSlot(s.k,"wall",lint,4);hsSlot(SPEC[i+1].k,"wall",lint,5);
         const fr=mat(0x2a241f);box(.12,3,.36,fr,-1.5,1.5,z1);box(.12,3,.36,fr,1.5,1.5,z1);box(3.2,.12,.36,fr,0,3,z1);
         /* табличка следующего зала */
         textPlane(textCanvas(opt.halls[SPEC[i+1].k],"",{w:512,h:96,ts:40,pad:24,bg:"#141619",fg:"#E9EDF0",font:"Golos Text, sans-serif"}),1.6,.3,0,3.35,z1+.16)}
-      if(i===0){const e=new T.Mesh(new T.PlaneGeometry(HW*2,H,sg(HW*2),Math.max(4,sg(H))),pm);e.rotation.y=Math.PI;e.position.set(0,H/2,z0);S.add(e);camBlock.push(e);surf.push(e)}
+      if(i===0){const e=new T.Mesh(new T.PlaneGeometry(HW*2,H,sg(HW*2),Math.max(4,sg(H))),pm);e.rotation.y=Math.PI;e.position.set(0,H/2,z0);S.add(e);camBlock.push(e);surf.push(e);hsSlot(s.k,"wall",e)}
       walk.push([-HW+.45,HW-.45,z1+.45,z0-.45]);if(!endFull)walk.push([-1.1,1.1,z1-.6,z1+.6]);
       /* название зала на стене у входа */
       textPlane(textCanvas(opt.halls[s.k],s.sub,{w:1024,h:300,ts:64,bs:30,pad:40,bg:/^(sv|dv|ot|n|kr)$/.test(s.k)?"#141619":"#FFFFFF",fg:/^(sv|dv|ot|n|kr)$/.test(s.k)?"#E9EDF0":"#16191D",fg2:"#8A939B"}),2.4,.7,-HW+.02,2.3,z0-2.2,Math.PI/2);
@@ -926,9 +943,9 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
       const CX=12.6;/* граница ковролина и резины */
       const fr=pl(B.x1-CX,D,bmat({map:tex("rubber","",[1,1])}),1);fr.rotation.x=-Math.PI/2;fr.position.set((CX+B.x1)/2,0,cz);floors.push(fr);
       const fc=pl(CX-B.x0,D,bmat({map:tex("carpet","",[1,1])}),1);fc.rotation.x=-Math.PI/2;fc.position.set((B.x0+CX)/2,0,cz);floors.push(fc);
-      const ce=pl(W,D,bmat({color:new T.Color(0x2B2E34)}),3);ce.rotation.x=Math.PI/2;ce.position.set(cx,H,cz);
+      const ce=pl(W,D,bmat({color:new T.Color(0x2B2E34)}),3);ce.rotation.x=Math.PI/2;ce.position.set(cx,H,cz);hsSlot("hb","floor",fr);hsSlot("hb","floor",fc);hsSlot("hb","ceil",ce);
       const wm=bmat({map:tex("plaster","#B7BDC3",[1,1])});tintMat(wm,wm.map,"#B7BDC3");
-      const wall=(w,h,x,y,z,ry)=>{const m=pl(w,h,wm,3);m.rotation.y=ry;m.position.set(x,y,z);camBlock.push(m);return m};
+      const wall=(w,h,x,y,z,ry)=>{const m=pl(w,h,wm,3);m.rotation.y=ry;m.position.set(x,y,z);camBlock.push(m);hsSlot("hb","wall",m);return m};
       wall(W,H,cx,H/2,B.z0,Math.PI);wall(W,H,cx,H/2,B.z1,0);
       /* этап 10: в восточной стене — проём в «Базу Б» (два куска и перемычка) */
       {const C2=BASE2,ea=C2.DZ-C2.DW,eb=C2.DZ+C2.DW;wall(B.z0-eb,H,B.x1,H/2,(B.z0+eb)/2,-Math.PI/2);wall(ea-B.z1,H,B.x1,H/2,(ea+B.z1)/2,-Math.PI/2);wall(eb-ea,H-C2.DH,B.x1,(C2.DH+H)/2,C2.DZ,-Math.PI/2)}
@@ -1199,11 +1216,12 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
       el.addEventListener("keyup",ev=>ev.stopPropagation());wrap.appendChild(el);liftEl=el;const fb=el.querySelector("[data-lift]:not([aria-current])");if(fb)fb.focus({preventScroll:true})}
     stopFns.push(liftClose);
     /* ---- (а) предметы книги без постамента: новые, переехавшие в другой зал, «База Героев» — свободное место в зале; сохранённое место (pos) — важнее ---- */
-    const BOOKPED={};
+    const BOOKPED={},BUILTIN={};/* этап 12: BUILTIN — предметы, которые показывает встроенный экспонат зала: id → код зала */
     function bookFree(hi){const h=HALLZ[hi];if(!h)return null;const side=!!h.side,x0=(side?h.x0:-HW)+1.1,x1=(side?h.x1:HW)-1.1,za=h.z1+(side?1.1:2.7),zb=h.z0-(side?1.1:2.7);
       const near=(x,z,rad)=>blockers.some(b=>b[0]<1e5&&!(b[5]>2.3)&&x>b[0]-rad&&x<b[1]+rad&&z>b[2]-rad&&z<b[3]+rad);
       const ok=(x,z)=>{if(!side&&Math.abs(x)<2.3)return false;if(h.k==="kv"&&(x<-1.5||(x>1.5&&z<h.z0-11)))return false;
         if(h.k==="hb"&&((x<BASE.x0+2.6&&Math.abs(z-BASE.DZ)<2.4)||(x>BASE.x1-2.6&&Math.abs(z-BASE2.DZ)<2.4)))return false;
+        if(h.k==="hb2"&&x<BASE2.x0+2.6&&Math.abs(z-BASE2.DZ)<2.4)return false;
         if(near(x,z,.95))return false;if(![[-.9,-.9],[.9,-.9],[-.9,.9],[.9,.9]].every(([a,b])=>inWalk(x+a,z+b)))return false;
         return [[1.05,0],[-1.05,0],[0,1.05],[0,-1.05]].some(([a,b])=>canStand(x+a,z+b))};
       const xs=[];if(side){for(let x=x0;x<=x1+1e-6;x+=.5)xs.push(+x.toFixed(2))}else{for(let a=2.5;a<=x1+1e-6;a+=.5)xs.push(+a.toFixed(2),-(+a.toFixed(2)))}
@@ -1214,26 +1232,27 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
       opt.objs.forEach(o=>{let p=o.pos;if(!p||p.h!==o.h||!isFinite(+p.x)||!isFinite(+p.z))return;
         /* этап 11: место, сохранённое до переноса «Базы» (прежние координаты арены), — переводим в новые */
         if((o.h==="hb"||o.h==="hb2")&&+p.z<=BASE_L.z0+.5&&+p.z>=BASE_L.z1-.5&&+p.x>BASE_L.xm)p=Object.assign({},p,{z:+p.z+BZ});const hi=H_K[o.h];if(hi==null||hallAt(+p.z,+p.x)!==hi)return;
-        let g=BOOKPED[o.id];if(!g){if(has(o.id))return;g=pedestal(o,+p.x,+p.z)}pedMove(g,+p.x,+p.z,+p.r||0);g.userData.manual=true});
-      opt.objs.forEach(o=>{if(BOOKPED[o.id]||has(o.id)||!(o._fresh||o.h==="hb"))return;const hi=H_K[o.h];if(hi==null)return;const s=bookFree(hi);if(!s){LATE.miss.push(o.id);return}
+        let g=BOOKPED[o.id];if(!g){if(BUILTIN[o.id]===o.h||(has(o.id)&&!o._fresh&&!BUILTIN[o.id]))return;g=pedestal(o,+p.x,+p.z)}pedMove(g,+p.x,+p.z,+p.r||0);g.userData.manual=true});
+      /* этап 12: встроенный экспонат (открытки на столе, часы, тетрадь) не мешает предмету, переехавшему в другой зал, получить постамент */
+      opt.objs.forEach(o=>{if(BOOKPED[o.id]||BUILTIN[o.id]===o.h||(has(o.id)&&!o._fresh&&!BUILTIN[o.id])||!(o._fresh||o.h==="hb"||o.h==="hb2"))return;const hi=H_K[o.h];if(hi==null)return;const s=bookFree(hi);if(!s){LATE.miss.push(o.id);return}
         const g=pedestal(o,s.x,s.z);g.userData.auto={x:s.x,z:s.z,r:0};g.userData.late=true;LATE.placed.push(o.id)})}
     const LATE={placed:[],miss:[]};
     /* ---- расстановка в 3D: «изменить расстановку» — владелец пространства в своей комнате, автор сайта в залах книги ---- */
     const ARR={can:false,open:false,hi:-1,sel:null,el:null,btn:null,busy:false};
-    const arrOk=hi=>{const h=HALLZ[hi];if(!h)return false;if(WORLD)return h.world==="r"&&!!h.space.canEdit&&!!WORLD.save;return ARR.can&&!!opt.placeBook&&(hi<NH||hi===IB)};
+    const arrOk=hi=>{const h=HALLZ[hi];if(!h)return false;if(WORLD)return h.world==="r"&&!!h.space.canEdit&&!!WORLD.save;return ARR.can&&!!opt.placeBook&&(hi<NH||hi===IB||hi===IB2)};
     function arrItems(hi){const h=HALLZ[hi];if(WORLD){const Q=h.Q;return Q.objs.map(Wo=>({id:Wo.o.id,name:Wo.o.name,kind:Wo.o.place&&Wo.o.place.kind==="ped"?"ped":"wall",manual:!!(Wo.pl&&Wo.pl.manual),Wo}))}
-      return (byHall[h.k]||[]).map(o=>{const g=BOOKPED[o.id];return {id:o.id,name:o.name,kind:"ped",manual:!!(g&&g.userData.manual),shown:!!g,o}})}
+      return (byHall[h.k]||[]).map(o=>{const g=BOOKPED[o.id];return {id:o.id,name:o.name,kind:"ped",manual:!!(g&&g.userData.manual),shown:!!g,builtin:BUILTIN[o.id]===h.k,miss:LATE.miss.indexOf(o.id)>=0,o}})}
     function arrDraw(msg){if(!ARR.el)return;const it=arrItems(ARR.hi),sel=it.find(x=>x.id===ARR.sel);
       ARR.el.querySelector(".mz-arrt").textContent="Изменить расстановку · "+TN(HALLZ[ARR.hi].k);
-      ARR.el.querySelector(".mz-arrl").innerHTML=it.length?it.map(x=>`<button type="button" data-id="${x.id}" aria-pressed="${x.id===ARR.sel}">${String(x.name).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}<small>${x.kind==="ped"?"на постаменте":"на стене"} · ${x.manual?"место выбрано":WORLD?"автоматически":x.shown?"автоматически":"не выставлен"}</small></button>`).join(""):`<p>Предметов нет.</p>`;
-      ARR.el.querySelectorAll("[data-a]").forEach(b=>{const a=b.dataset.a;b.disabled=ARR.busy||!sel||(a==="rot"&&sel.kind!=="ped")||(a==="rot"&&!WORLD&&!sel.shown)||(a==="auto"&&!sel.manual)});
+      ARR.el.querySelector(".mz-arrl").innerHTML=it.length?it.map(x=>`<button type="button" data-id="${x.id}" aria-pressed="${x.id===ARR.sel}">${String(x.name).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}<small>${x.builtin?"встроенный экспонат зала — стоит на своём месте":(x.kind==="ped"?"на постаменте":"на стене")+" · "+(x.manual?"место выбрано":WORLD?"автоматически":x.shown?"автоматически":x.miss?"не выставлен: в зале нет свободного места — поставьте вручную":"не выставлен")}</small></button>`).join(""):`<p>Предметов нет.</p>`;
+      ARR.el.querySelectorAll("[data-a]").forEach(b=>{const a=b.dataset.a;b.disabled=ARR.busy||!sel||!!sel.builtin||(a==="rot"&&sel.kind!=="ped")||(a==="rot"&&!WORLD&&!sel.shown)||(a==="auto"&&!sel.manual)});
       if(msg!=null)ARR.el.querySelector(".mz-arrs").textContent=msg;
       ARR.el.querySelectorAll(".mz-arrl [data-id]").forEach(b=>b.onclick=()=>{ARR.sel=b.dataset.id;arrDraw("");try{canvas.focus({preventScroll:true})}catch(e){}})}
     function arrOpen(v){ARR.open=v;if(ARR.btn)ARR.btn.setAttribute("aria-expanded",String(v));if(!v){if(ARR.el){ARR.el.remove();ARR.el=null}return}
       ARR.hi=lastHall;if(!ARR.el){const el=document.createElement("div");el.className="mz-arrp";el.setAttribute("role","group");el.setAttribute("aria-label","Изменить расстановку");
         el.innerHTML=`<div class="mz-arrh"><b class="mz-arrt"></b><button type="button" class="mz-arrx" aria-label="Закрыть расстановку">✕</button></div><p class="mz-arrhint">${WORLD?"Выберите предмет, подойдите к месту и нажмите «поставить здесь»: картина встанет на ближайшую стену на высоте глаз, постамент — на шаг впереди вас.":"Выберите предмет, подойдите к месту и нажмите «поставить здесь»: постамент встанет на шаг впереди вас, лицом к вам."}</p>
-          <div class="mz-arrl"></div><div class="mz-arra"><button type="button" data-a="here">поставить здесь</button><button type="button" data-a="rot">повернуть</button><button type="button" data-a="auto">вернуть на автоматическое место</button></div><p class="mz-arrs" role="status" aria-live="polite"></p>`;
-        el.querySelector(".mz-arrx").onclick=()=>arrOpen(false);el.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>arrAct(b.dataset.a));
+          <div class="mz-arrl"></div><div class="mz-arra"><button type="button" data-a="here">поставить здесь</button><button type="button" data-a="rot">повернуть</button><button type="button" data-a="auto">вернуть на автоматическое место</button></div>${!WORLD&&opt.hallEdit?'<div class="mz-arra"><button type="button" data-hs>оформление залов</button></div>':""}<p class="mz-arrs" role="status" aria-live="polite"></p>`;
+        el.querySelector(".mz-arrx").onclick=()=>arrOpen(false);{const hb_=el.querySelector("[data-hs]");if(hb_)hb_.onclick=()=>{if(locked())document.exitPointerLock();pause();Promise.resolve(opt.hallEdit.open(HALLZ[ARR.hi].k)).catch(()=>{})}}el.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>arrAct(b.dataset.a));
         el.addEventListener("pointerdown",ev=>ev.stopPropagation());hud.appendChild(el);ARR.el=el}
       if(WORLD){const s=HALLZ[ARR.hi].space;arrDraw("Статус пространства: "+(W_ST[s.status]||s.status)+". После изменений его снова проверяет автор сайта.")}else arrDraw("")}
     function arrSync(hi){if(!ARR.btn)return;const ok=arrOk(hi);ARR.btn.hidden=!ok;if(ARR.open&&(!ok||hi!==ARR.hi)){if(ok){ARR.hi=hi;ARR.sel=null;arrDraw("")}else arrOpen(false)}}
@@ -1335,7 +1354,9 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
         a0+=c[0]*w;a1+=c[1]*w;a2+=c[2]*w});
       let f,k;if(kind===0){f=.8+.2*ss(0,1.4,h.side?Math.min(x-h.x0,h.x1-x,h.z0-zz,zz-h.z1):HW-Math.abs(x));k=1}else if(kind===2){f=.92;k=.55}
       else{const yn=Math.max(0,Math.min(1,y/h.H));f=A.low?1.1-.42*ss(.05,.9,yn):.8+.3*ss(0,.55,yn)-.1*ss(.82,1,yn);k=.7}
-      o[0]=Math.min(1.6,(lo[0]+a0*k)*f);o[1]=Math.min(1.6,(lo[1]+a1*k)*f);o[2]=Math.min(1.6,(lo[2]+a2*k)*f)}
+      o[0]=Math.min(1.6,(lo[0]+a0*k)*f);o[1]=Math.min(1.6,(lo[1]+a1*k)*f);o[2]=Math.min(1.6,(lo[2]+a2*k)*f);
+      /* этап 12: свет зала из оформления — тёплый, холодный или нейтральный (приглушает цвет) */
+      const tn=HS_T[h.k];if(tn){if(tn==="n"){const m_=(o[0]+o[1]+o[2])/3;for(let c=0;c<3;c++)o[c]+=(m_-o[c])*.6}else for(let c=0;c<3;c++)o[c]=Math.min(1.6,o[c]*tn[c])}}
     function bake(mesh){mesh.updateMatrixWorld(true);const g=mesh.geometry,pos=g.attributes.position,nor=g.attributes.normal,n=pos.count,col=new Float32Array(n*3),nm=new T.Matrix3().getNormalMatrix(mesh.matrixWorld),v=new T.Vector3(),nv=new T.Vector3(),o=[0,0,0];
       for(let i=0;i<n;i++){v.fromBufferAttribute(pos,i).applyMatrix4(mesh.matrixWorld);nv.fromBufferAttribute(nor,i).applyMatrix3(nm).normalize();const h=HALLZ[hallAt(v.z+nv.z*.4,v.x+nv.x*.4)];lightAt(h,v.x,v.y,v.z,nv.y>.7?0:nv.y<-.7?2:1,o);col[i*3]=o[0];col[i*3+1]=o[1];col[i*3+2]=o[2]}
       g.setAttribute("color",new T.BufferAttribute(col,3))}
@@ -1390,7 +1411,7 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
       box(.14,.1,.01,mat(0xC8433A),-7.14,1.5,kz-1.8);
       box(2.4,.9,.6,white,-6.6,.45,kz+2.2,true);box(2.4,.04,.62,mat(0x6E6A64),-6.6,.92,kz+2.2);
       cyl(.11,.1,.02,white,-4.6,.82,kz);/* тарелка */
-      const cards=opt.objs.find(o=>o.id==="cards");if(cards){const cg=new T.Group();cg.position.set(-5.1,.81,kz-.1);for(let i=0;i<9;i++){const c=new T.Mesh(new T.BoxGeometry(.15,.003,.1),mat([0xE7C9A0,0xB9D2E6,0xE9B4B4,0xD8E2B0][i%4]));c.position.set((i%3)*.17-.1,i*.003,Math.floor(i/3)*.12-.1);c.rotation.y=(i%5-2)*.18;cg.add(c)}if(opt.photo&&opt.photo("cards")){const tx=new T.TextureLoader().load(opt.photo("cards"));if(T.sRGBEncoding)tx.encoding=T.sRGBEncoding;const fr=new T.Mesh(new T.BoxGeometry(.34,.26,.015),mat(0x1a1a1a));fr.position.set(.38,.15,-.05);fr.rotation.x=-.2;const pp=new T.Mesh(new T.PlaneGeometry(.31,.23),new T.MeshBasicMaterial({map:tx}));pp.position.z=.009;fr.add(pp);cg.add(fr);window.__photoPlanes=(window.__photoPlanes||[]).concat("cards")}
+      const cards=opt.objs.find(o=>o.id==="cards"&&o.h==="kv");if(cards){BUILTIN.cards="kv";const cg=new T.Group();cg.position.set(-5.1,.81,kz-.1);for(let i=0;i<9;i++){const c=new T.Mesh(new T.BoxGeometry(.15,.003,.1),mat([0xE7C9A0,0xB9D2E6,0xE9B4B4,0xD8E2B0][i%4]));c.position.set((i%3)*.17-.1,i*.003,Math.floor(i/3)*.12-.1);c.rotation.y=(i%5-2)*.18;cg.add(c)}if(opt.photo&&opt.photo("cards")){const tx=new T.TextureLoader().load(opt.photo("cards"));if(T.sRGBEncoding)tx.encoding=T.sRGBEncoding;const fr=new T.Mesh(new T.BoxGeometry(.34,.26,.015),mat(0x1a1a1a));fr.position.set(.38,.15,-.05);fr.rotation.x=-.2;const pp=new T.Mesh(new T.PlaneGeometry(.31,.23),new T.MeshBasicMaterial({map:tx}));pp.position.z=.009;fr.add(pp);cg.add(fr);window.__photoPlanes=(window.__photoPlanes||[]).concat("cards")}
 cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n=3;S.add(cg);clickable.push(cg)}
       const lamp=new T.Mesh(new T.CylinderGeometry(.18,.3,.22,24,1,true),new T.MeshLambertMaterial({color:0xF3D9A0,side:T.DoubleSide,emissive:0x664411}));lamp.position.set(-4.8,2.5,kz);S.add(lamp);
       rope(-1.8,kz-2.6,-1.8,kz+2.6);
@@ -1424,14 +1445,14 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
     /* — Святилище: восьмиугольник, одна вещь, стрелка идёт только под взглядом — */
     let clockHand=null,clockPos=null;
     BOOK&&(function(){const h=H_.sv;const r=5.6;let svN=0;for(let i=0;i<8;i++){const a=i/8*Math.PI*2+Math.PI/8;const x=Math.sin(a)*r,zz=h.cz+Math.cos(a)*r;if(Math.abs(x)<1.6&&Math.abs(zz-h.cz)>4)continue;
-        {const c=rothko(i*7919+3);const pp=pick_("sv",svN++);if(pp)imgOnto(c,pp.url);textPlane(c,1.3,1.9,x*.98,2.1,zz,Math.atan2(-x,-(zz-h.cz)),false)}}
+        if(!hsP_("sv")){const c=rothko(i*7919+3);const pp=pick_("sv",svN++);if(pp)imgOnto(c,pp.url);textPlane(c,1.3,1.9,x*.98,2.1,zz,Math.atan2(-x,-(zz-h.cz)),false)}}
       const pl=box(.7,1.05,.7,mat(0x0E0C0D),0,.52,h.cz,"ns");contact(0,h.cz,1.4,1.4);
       const face=new T.Mesh(new T.CylinderGeometry(.22,.22,.04,48),mat(0xF1EEE6));face.rotation.x=Math.PI/2;face.position.set(0,1.35,h.cz);S.add(face);
       const rim=new T.Mesh(new T.TorusGeometry(.22,.02,10,48),mat(0x222222));rim.position.set(0,1.35,h.cz+.005);S.add(rim);
       for(let i=0;i<12;i++){const t=new T.Mesh(new T.BoxGeometry(.012,.04,.01),mat(0x222222));const a=i/12*Math.PI*2;t.position.set(Math.sin(a)*.18,1.35+Math.cos(a)*.18,h.cz+.025);t.rotation.z=-a;S.add(t)}
       const hand=new T.Group();hand.position.set(0,1.35,h.cz+.03);const hm=new T.Mesh(new T.BoxGeometry(.006,.19,.004),mat(0xB0302A));hm.position.y=.08;hand.add(hm);S.add(hand);clockHand=hand;clockPos=new T.Vector3(0,1.35,h.cz);
       const st=new T.Mesh(new T.CylinderGeometry(.03,.03,.25,8),mat(0x222222));st.position.set(0,1.15,h.cz);S.add(st);
-      const clk=opt.objs.find(o=>/секундн/i.test(o.name))||opt.objs.find(o=>/часы/i.test(o.name));
+      const clk=opt.objs.find(o=>o.id==="o19")||opt.objs.find(o=>/секундн/i.test(o.name))||opt.objs.find(o=>/часы/i.test(o.name));if(clk)BUILTIN[clk.id]="sv";
       [pl,face,rim].forEach(m=>{m.userData.id=clk?clk.id:"";});if(clk){pl.userData.label=clk.name;pl.userData.n=clk.n;face.userData.label=clk.name;face.userData.n=clk.n;clickable.push(pl,face)}
       const sp=new T.SpotLight(0xFFE2B8,1.4,9,.35,.6,1.4);sp.position.set(0,4.4,h.cz+.4);sp.target.position.set(0,1.2,h.cz);S.add(sp);S.add(sp.target)})();
 
@@ -1453,7 +1474,7 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
       const nb=opt.objs.find(o=>o.n===40&&/тетрад/i.test(o.name))||opt.objs.find(o=>/тетрад/i.test(o.name)&&o.h==="ot")||opt.objs.find(o=>/тетрад/i.test(o.name)&&opt.photo&&opt.photo(o.id));
       const book_=box(.42,.03,.3,mat(0x2F4F7F),0,.85,h.z0-6);const pg=box(.4,.012,.28,mat(0xF2EBD8),0,.872,h.z0-6);
       const gl=new T.Mesh(new T.BoxGeometry(.7,.36,.55),new T.MeshLambertMaterial({color:0xDDEEFF,transparent:true,opacity:.16}));gl.position.set(0,1.01,h.z0-6);S.add(gl);block(-.35,.35,h.z0-6.275,h.z0-5.725,1.19,"ns");/* этап 9: на стол встать можно, на стеклянный колпак с тетрадью — нет */
-      if(nb){[book_,pg,gl].forEach(m=>{m.userData.id=nb.id;m.userData.label=nb.name;m.userData.n=nb.n});clickable.push(gl)}
+      if(nb){BUILTIN[nb.id]="ot";[book_,pg,gl].forEach(m=>{m.userData.id=nb.id;m.userData.label=nb.name;m.userData.n=nb.n});clickable.push(gl)}
       box(.5,.05,.5,wood,-HW+.6,.46,h.z0-9);box(.5,.5,.05,wood,-HW+.6,.7,h.z0-9-.24);/* стул у стены */
       box(.4,2.6,2.6,mat(0x3A2A1C),HW-.2,1.3,h.z0-4,true);for(let s=0;s<4;s++)for(let b=0;b<9;b++)box(.25,.32+Math.random()*.1,.07+Math.random()*.05,mat(new T.Color().setHSL(Math.random(),.25,.3)),HW-.3,.5+s*.6,h.z0-5.1+b*.26);
       box(1.4,1.8,.6,mat(0x6A5440),-HW+.7,.9,h.z0-12,true);const door=box(.62,.8,.03,mat(0x7D6650),-HW+1.05,1.3,h.z0-11.68);door.rotation.y=.25;
@@ -1470,7 +1491,7 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
       box(1.3,.42,.7,wood,0,.21,h.cz,true);
       [[-.3,0],[.1,.15],[.35,-.1]].forEach(([a,b],i)=>{cyl(.045,.04,.1,mat([0xF2F2EE,0xD9C26A,0x9AB8D6][i]),a,.47,h.cz+b)});
       cyl(.18,.18,.12,mat(0xF6EAD8),-.1,.48,h.cz-.2);for(let i=0;i<16;i++){const a=i/16*Math.PI*2;const c=cyl(.006,.006,.07,mat(0xFFB7C5),-.1+Math.sin(a)*.13,.58,h.cz-.2+Math.cos(a)*.13,6);const fl=new T.Mesh(new T.SphereGeometry(.012,8,8),new T.MeshBasicMaterial({color:0xFFC870}));fl.position.set(c.position.x,.63,c.position.z);S.add(fl);anim.push(t=>{fl.scale.setScalar(.8+Math.sin(t*9+i)*.25)})}
-      for(let i=0;i<6;i++){const x=-HW+.03,zz=h.z0-3-i*1.6;const c=painting(i*104729+17,384,288);{const pp=pick_("se",i);if(pp)imgOnto(c,pp.url)}box(.04,.8,1.02,mat(0x2B2018),x+.02,1.8+(i%2)*.3,zz);textPlane(c,.9,.68,x+.05,1.8+(i%2)*.3,zz,Math.PI/2,false)}
+      if(!hsP_("se"))for(let i=0;i<6;i++){const x=-HW+.03,zz=h.z0-3-i*1.6;const c=painting(i*104729+17,384,288);{const pp=pick_("se",i);if(pp)imgOnto(c,pp.url)}box(.04,.8,1.02,mat(0x2B2018),x+.02,1.8+(i%2)*.3,zz);textPlane(c,.9,.68,x+.05,1.8+(i%2)*.3,zz,Math.PI/2,false)}
       box(1.6,.9,.08,mat(0x111111),HW-.06,1.4,h.cz,false).rotation.y=0;
       pick("se",6).forEach((o,i)=>pedestal(o,4.2+(i%2)*1.8,h.z0-3-Math.floor(i/2)*3.4))})();
 
@@ -1500,7 +1521,7 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
       const sky=new T.Mesh(new T.PlaneGeometry(3,L*.55),new T.MeshBasicMaterial({color:0xF6F2E8}));sky.rotation.x=Math.PI/2;sky.position.set(0,h.H-.02,h.z0-L*.28);S.add(sky);
       const gold=mat(0x8F7032);
       for(let i=0;i<14;i++){const zz=h.z0-3-i*4.2;const t=(h.z0-zz)/L;
-        if(t<.5){[-1,1].forEach(s=>{const ph=1.6+((i*3+s+5)%4)*.35;const c=painting(i*7907+s*31+11);const pp=pick_("kr",krN++);if(pp)imgOnto(c,pp.url);const fr=box(.08,ph+.24,(ph+.24)*1.33,gold,s*(HW-.06),2.6,zz);textPlane(c,ph*1.33,ph,s*(HW-.11),2.6,zz,s>0?-Math.PI/2:Math.PI/2,false);
+        if(t<.5){if(!hsP_("kr"))[-1,1].forEach(s=>{const ph=1.6+((i*3+s+5)%4)*.35;const c=painting(i*7907+s*31+11);const pp=pick_("kr",krN++);if(pp)imgOnto(c,pp.url);const fr=box(.08,ph+.24,(ph+.24)*1.33,gold,s*(HW-.06),2.6,zz);textPlane(c,ph*1.33,ph,s*(HW-.11),2.6,zz,s>0?-Math.PI/2:Math.PI/2,false);
             textPlane(plaqueCanvas(pp?pp.title:"Без названия · вид "+(i+1),"залы галереи"),.36,.14,s*(HW-.1),1.2,zz+(ph*.67+.3),s>0?-Math.PI/2:Math.PI/2)});
           if(i%2===0){box(1.6,.42,.5,mat(0x6E1C22),0,.21,zz,true);contact(0,zz,2,1)}}
         else{[-1,1].forEach(s=>{for(let k=0;k<5;k++){box(.7,.035,3.8,mat(0xC9CCCF),s*(HW-.45),.35+k*.5,zz);for(let j=0;j<7;j++){const hh=.18+((i+j+k)%3)*.08;box(.22,hh,.22,mat(pal[(i*3+j+k+(s>0?2:0))%8]),s*(HW-.45),.37+k*.5+hh/2,zz-1.6+j*.52)}}
@@ -1520,6 +1541,67 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
       pick("kr",6).forEach((o,i)=>pedestal(o,-2.2+(i%3)*1.6,cz+1.4+Math.floor(i/3)*1.6))})();
 
     surf.forEach(bake);
+    /* ---------- этап 12: оформление залов — материалы поверхностей и картины. Цвет — сразу; картинки — лениво (зал и соседние), вдали освобождаются ---------- */
+    const HSG={},HSP=[],HSF={};let HSG_=null;
+    (function hsInit(){if(!BOOK||!Object.keys(HS).length)return;const H_I={};HALLZ.forEach((h,i)=>{if(!(h.k in H_I))H_I[h.k]=i});
+      Object.keys(HS).forEach(k=>{const hi=H_I[k];if(hi==null)return;const h=HALLZ[hi],side=!!h.side,f=side?[1,0]:[0,-1],R=[-f[1],f[0]],cx=side?h.cx:0,cz=h.cz,hx=side?(h.x1-h.x0)/2:HW,hz=h.D/2;
+        const ext=d=>Math.abs(d[0])*hx+Math.abs(d[1])*hz;
+        const wallF=d=>{const e=ext(d),ua=[-d[1],d[0]],L=2*ext(ua),c=[cx+d[0]*e,cz+d[1]*e];return {o:[c[0]-ua[0]*L/2,0,c[1]-ua[1]*L/2],ua:[ua[0],0,ua[1]],va:[0,1,0],L,Lv:h.H,n:[-d[0],-d[1]],d,c}};
+        const Lr=2*ext(R),Lf=2*ext(f),fo=[cx-R[0]*Lr/2-f[0]*Lf/2,0,cz-R[1]*Lr/2-f[1]*Lf/2],flF={o:fo,ua:[R[0],0,R[1]],va:[f[0],0,f[1]],L:Lr,Lv:Lf};
+        HSF[k]={hi,h,W:{n:wallF(f),s:wallF([-f[0],-f[1]]),e:wallF(R),w:wallF([-R[0],-R[1]])},floor:flF,ceil:flF}});
+      const v=new T.Vector3();
+      HSS.forEach(sl=>{const F=HSF[sl.k];if(!F)return;const me=sl.mesh,g=me.geometry;me.updateMatrixWorld(true);
+        if(sl.face>=0){const G=g.groups[sl.face]||(g.userData.hsG&&g.userData.hsG[sl.face]);if(!g.userData.hsG)g.userData.hsG=g.groups.map(x=>({start:x.start,count:x.count}));const GG=g.userData.hsG[sl.face];
+          const ix=g.index.array,set=new Set();for(let q=GG.start;q<GG.start+GG.count;q++)set.add(ix[q]);sl.vs=[...set]}
+        /* стена: ближайшая из четырёх (по центру поверхности) */
+        if(sl.part==="wall"){const pos=g.attributes.position;let ax=0,az=0,n=0;const each=sl.vs||Array.from({length:pos.count},(_,q)=>q);each.forEach(q=>{v.fromBufferAttribute(pos,q).applyMatrix4(me.matrixWorld);ax+=v.x;az+=v.z;n++});ax/=n;az/=n;
+          let best=null,bd=1e9;Object.values(F.W).forEach(W=>{const dd=Math.abs((ax-W.c[0])*W.d[0]+(az-W.c[1])*W.d[1]);if(dd<bd){bd=dd;best=W}});sl.F=best}
+        else sl.F=F[sl.part];
+        const key=sl.k+"|"+sl.part;if(!HSG[key]){const def=HS[sl.k][sl.part];HSG[key]={k:sl.k,part:sl.part,def,mat:bmat({color:new T.Color(def.color||"#FFFFFF")}),slots:[],state:def.img?"wait":"none",tex:null,gen:0}}
+        HSG[key].slots.push(sl);if(!me.userData.hsOrig)me.userData.hsOrig=Array.isArray(me.material)?me.material[0]:me.material});
+      /* цвет без картинки и до её загрузки — сразу */
+      Object.values(HSG).forEach(G=>{if(G.def.color)G.slots.forEach(sl=>hsSet(sl,G.mat))});
+      /* картины */
+      Object.keys(HS).forEach(k=>{const F=HSF[k];if(!F||!HS[k].paintings)return;
+        if(!HSG_){HSG_={box:new T.BoxGeometry(1,1,1),pl:new T.PlaneGeometry(1,1),frame:mat(0x24201C)}}
+        const DRS=(hallInfo()[k]||{}).doors||{};
+        HS[k].paintings.forEach((p,j)=>{const W=F.W[p.wall]||F.W.n,H=F.h.H,L=W.L,ft=hsFit(p,L,H,DRS[p.wall]),w=ft.w,hh=ft.h,u=ft.u,y=ft.y,al=L/2+u;
+          const g=new T.Group();g.position.set(W.o[0]+W.ua[0]*al+W.n[0]*.04,y,W.o[2]+W.ua[2]*al+W.n[1]*.04);g.rotation.y=Math.atan2(W.n[0],W.n[1]);
+          const fr=new T.Mesh(HSG_.box,HSG_.frame);fr.position.z=-.018;g.add(fr);const imat=new T.MeshBasicMaterial({color:0xE6E1D8}),im=new T.Mesh(HSG_.pl,imat);im.position.z=.006;g.add(im);
+          const P={k,j,p,g,fr,im,imat,hi:F.hi,max:[w,hh],asp:w/hh,state:"wait",tex:null,ct:null,pt:null,pq:null,gen:0,on:false};
+          if(p.title){const pmat=new T.MeshBasicMaterial({color:0xF4F2EC}),pq=new T.Mesh(HSG_.pl,pmat);pq.scale.set(.4,.155,1);g.add(pq);P.pq=pq;P.pmat=pmat}
+          im.userData.photo={src:p.img,caption:p.title||"Картина"};im.userData.label=p.title||"Картина";g.visible=false;S.add(g);hsSize(P);HSP.push(P)})})})();
+    /* материал поверхности: у плоскостей — целиком; у перегородок (коробки) — только своя сторона (+z — зал до перегородки, −z — следующий) */
+    function hsSet(sl,m){const me=sl.mesh;if(sl.face<0){me.material=m;return}
+      if(!Array.isArray(me.material)){const o=me.material,g=me.geometry,G=g.userData.hsG||g.groups.map(x=>({start:x.start,count:x.count}));g.userData.hsG=G;
+        if(G.length===6){g.clearGroups();g.addGroup(G[0].start,G[0].count+G[1].count+G[2].count+G[3].count,0);g.addGroup(G[4].start,G[4].count,1);g.addGroup(G[5].start,G[5].count,2)}me.material=[o,o,o]}
+      me.material[sl.face===4?1:2]=m}
+    /* UV по мировым координатам поверхности: «растянуть» — на всю стену (пол, потолок), «повторять» — плитка 2 м, высота по пропорции картинки */
+    function hsUV(sl,mode,tw,th){const g=sl.mesh.geometry,uv=g.attributes.uv,pos=g.attributes.position,F=sl.F;if(!g.userData.uv0)g.userData.uv0=Float32Array.from(uv.array);
+      const mw=sl.mesh.matrixWorld,v=new T.Vector3(),one=q=>{v.fromBufferAttribute(pos,q).applyMatrix4(mw);const dx=v.x-F.o[0],dy=v.y-F.o[1],dz=v.z-F.o[2];
+        const a=dx*F.ua[0]+dy*F.ua[1]+dz*F.ua[2],b=dx*F.va[0]+dy*F.va[1]+dz*F.va[2];uv.setXY(q,mode==="stretch"?a/F.L:a/tw,mode==="stretch"?b/F.Lv:b/th)};
+      if(sl.vs)sl.vs.forEach(one);else for(let q=0;q<uv.count;q++)one(q);uv.needsUpdate=true}
+    function hsUV0(sl){const g=sl.mesh.geometry,u0=g.userData.uv0;if(!u0)return;const uv=g.attributes.uv,one=q=>uv.setXY(q,u0[q*2],u0[q*2+1]);if(sl.vs)sl.vs.forEach(one);else for(let q=0;q<uv.count;q++)one(q);uv.needsUpdate=true}
+    const hsMax=()=>(lite||coarse.matches)?1024:2048;
+    function hsLoad(G){if(!G.def.img||G.state!=="wait")return;const gen=++G.gen;G.state="loading";
+      wLoadTex(G.def.img,hsMax(),(t,iw,ih)=>{if(G.gen!==gen||stopped){wDrop(t);return}if(!t){G.state="fail";return}
+        const mode=G.def.mode==="stretch"?"stretch":"tile",tw=2,th=tw*ih/iw;t.wrapS=t.wrapT=mode==="tile"?T.RepeatWrapping:T.ClampToEdgeWrapping;
+        G.slots.forEach(sl=>{hsUV(sl,mode,tw,th);hsSet(sl,G.mat)});G.tex=t;G.mat.map=t;G.mat.color.set(0xFFFFFF);G.mat.needsUpdate=true;G.state="ok";G.px=t.__px})}
+    function hsDrop(G){G.gen++;if(G.state!=="ok"&&G.state!=="loading")return;wDrop(G.tex);G.tex=null;G.mat.map=null;G.mat.color.set(G.def.color||"#FFFFFF");G.mat.needsUpdate=true;
+      G.slots.forEach(sl=>{hsUV0(sl);if(!G.def.color)hsSet(sl,sl.mesh.userData.hsOrig)});G.state="wait"}
+    function hsSize(P){let pw=P.max[0],ph=P.max[1];const a=P.asp;if(pw/ph>a)pw=ph*a;else ph=pw/a;P.im.scale.set(pw,ph,1);P.fr.scale.set(pw+.08,ph+.08,.035);
+      if(P.pq){const below=P.g.position.y-ph/2-.2>.35;P.pq.position.set(below?0:pw/2+.26,below?-ph/2-.17:-ph/2+.08,.01)}P.size=[+pw.toFixed(3),+ph.toFixed(3)]}
+    function hsOn(P){P.on=true;P.g.visible=true;if(clickable.indexOf(P.im)<0)clickable.push(P.im);
+      if(!P.ct){P.ct=new T.CanvasTexture(wCard(P.p.title||"Картина"));WTEX.add(P.ct)}if(!P.tex){P.imat.map=P.ct;P.imat.color.set(0xFFFFFF);P.imat.needsUpdate=true}
+      if(P.pq&&!P.pt){P.pt=new T.CanvasTexture(plaqueCanvas(P.p.title.length>46?P.p.title.slice(0,44)+"…":P.p.title,"",false));WTEX.add(P.pt);P.pmat.map=P.pt;P.pmat.color.set(0xFFFFFF);P.pmat.needsUpdate=true}
+      if(P.state!=="wait")return;const gen=++P.gen;P.state="loading";
+      wLoadTex(P.p.img,(lite||coarse.matches)?1024:(P.max[0]>2.5?2048:1024),(t,iw,ih)=>{if(P.gen!==gen||!P.on||stopped){wDrop(t);return}if(!t){P.state="fail";return}
+        P.tex=t;P.asp=iw/ih;P.imat.map=t;P.imat.needsUpdate=true;P.state="ok";hsSize(P)})}
+    function hsOff(P){P.on=false;P.gen++;P.g.visible=false;const i=clickable.indexOf(P.im);if(i>=0)clickable.splice(i,1);[P.tex,P.ct,P.pt].forEach(wDrop);P.tex=P.ct=P.pt=null;
+      P.imat.map=null;P.imat.color.set(0xE6E1D8);P.imat.needsUpdate=true;if(P.pmat){P.pmat.map=null;P.pmat.needsUpdate=true}P.state="wait"}
+    function hsStep(hi){if(hi===hsStep.h||(!HSP.length&&!Object.keys(HSG).length))return;hsStep.h=hi;const near=j=>j===hi||seen(j,hi);
+      Object.values(HSG).forEach(G=>{const j=HSF[G.k].hi;if(near(j))hsLoad(G);else hsDrop(G)});HSP.forEach(P=>{if(near(P.hi)){if(!P.on)hsOn(P)}else if(P.on)hsOff(P)})}
+    stopFns.push(()=>{Object.values(HSG).forEach(G=>{wDrop(G.tex);G.mat.dispose()});HSP.forEach(P=>{[P.tex,P.ct,P.pt].forEach(wDrop);P.imat.dispose();if(P.pmat)P.pmat.dispose()});if(HSG_){HSG_.box.dispose();HSG_.pl.dispose();HSG_.frame.dispose()}});
 
     /* ---------- фигура посетителя: коробочный человечек со своей кепкой и бейджем ---------- */
     /* фигура — общий набор (этап 6Б): тот же строитель рисует превью в панели персонажа */
@@ -2296,15 +2378,15 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
           const hx=dir==="x"?BR/2:BT/2,hz=dir==="x"?BT/2:BR/2;K.solid(cx-hx,cx+hx,cz+hz,cz-hz,ty,o.ns?"ns":0)})};
       const r0=c=>c%3;
       /* — арена: стенки ступенями (низ — встать, верх — укрытие), отдельные столбики, чтобы прыгать с блока на блок — */
-      bricks(14.4,-3.0,"z",[2,4,6,6,6,6,3],{holes:[[3,2],[4,4]]});
+      bricks(14.4,-3.0,"z",[2,4,6,6,6,6],{holes:[[3,2],[4,4]]});
       bricks(13.4,-13.4,"x",[1,2,3,3,6,7,7,5,2],{holes:[[5,3]]});
-      bricks(16.6,-8.0,"x",[5,6,7,7,6,6,4],{holes:[[2,5],[4,1]]});
-      bricks(20.2,-11.0,"z",[3,3,2,1]);
+      bricks(16.6,-8.4,"x",[5,6,7,7,6,6],{holes:[[2,5],[4,1]]});
+      
       bricks(17.6,-4.4,"x",[2,6,6,6,6,5,3,1],{holes:[[3,3]]});
-      [[15.6,-10.9,3],[16.6,-11.5,3],[17.3,-12.4,2]].forEach(([x,z,hc])=>{bricks(x-.2,z+.11,"x",[hc,hc]);bricks(x-.2,z-.11,"x",[hc,hc])});
+      /* проход: низкие парные вставки убраны, чтобы между стенками оставались проходы шире фигуры */
       /* надувные бункеры: барабан, клин (серые скаты, синие торцы), большая подушка */
       const drum=(x,z)=>{K.cyl(x,0,z,.72,1.08,0x2C4FB8);K.cyl(x,1.08,z,.74,.16,0xC9CDD2);K.cyl(x,1.24,z,.6,.04,0x2C4FB8);K.solid(x-.66,x+.66,z+.66,z-.66,1.3)};
-      drum(15.3,-6.6);drum(21.2,-14.6);
+      drum(15.3,-6.2);drum(21.2,-14.6);
       const wedge=(x,z,len,h,w,ry)=>{const sx=h/.75,sz=w/.866;K.geo(PROPS.G.tri,x,.25*sx,z,sx,len,sz,0xBCC2C8,{rz:-Math.PI/2,ry});[-1,1].forEach(e=>K.geo(PROPS.G.tri,x+Math.cos(ry||0)*e*(len/2+.03),.25*sx*1.04,z-Math.sin(ry||0)*e*(len/2+.03),sx*1.04,.07,sz*1.04,0x2C4FB8,{rz:-Math.PI/2,ry}))};
       wedge(18.6,-14.7,1.8,1.05,1.4,0);K.solid(17.65,19.55,-14.05,-15.35,1.05);
       K.box(21.3,0,-8.6,1.2,1.0,1.1,0x2C4FB8);K.box(21.3,1.0,-8.6,1.24,.05,1.14,0xC9CDD2);K.solid(20.68,21.92,-8.03,-9.17,1.05);
@@ -2823,7 +2905,8 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
     const titleEl=hud.querySelector(".mz-title");let titleT=0;stopFns.push(()=>clearTimeout(titleT));
     function showTitle(i){const h=HALLZ[i];titleEl.textContent="";const b=document.createElement("b"),sm=document.createElement("small");b.textContent=TN(h.k);
       if(WORLD){sm.textContent=h.world==="r"?"пространство посетителя · автор: "+(h.space.author||"посетитель")+(h.space.status!=="approved"?" · "+(W_ST[h.space.status]||h.space.status):""):(WR.length?"пространства посетителей: "+WR.length:"здесь пока нет пространств");titleEl.append(b,sm);titleEl.classList.add("on");clearTimeout(titleT);titleT=setTimeout(()=>titleEl.classList.remove("on"),2600);return}
-      sm.textContent=h.branch?"Боковая ветка у «Квартир»":h.side?"Боковой зал у «Предметов» · бегать, лазать, прыгать":`Зал ${i+1} из ${NH} · найдено ${fc.h[h.k]||0} из ${TOT[h.k]||0}`;titleEl.append(b,sm);titleEl.classList.add("on");clearTimeout(titleT);titleT=setTimeout(()=>titleEl.classList.remove("on"),2600)}
+      sm.textContent=h.branch?"Боковая ветка у «Квартир»":h.side?"Боковой зал у «Предметов» · бегать, лазать, прыгать":`Зал ${i+1} из ${NH} · найдено ${fc.h[h.k]||0} из ${TOT[h.k]||0}`;titleEl.append(b,sm);
+      /* этап 12: подпись автора из оформления зала */if(HS[h.k]&&HS[h.k].note){const nt=document.createElement("small");nt.className="mz-hsnote";nt.textContent=HS[h.k].note;titleEl.append(nt)}titleEl.classList.add("on");clearTimeout(titleT);titleT=setTimeout(()=>titleEl.classList.remove("on"),2600)}
 
     /* мини-карта: сверху — окрестность в масштабе (вперёд по анфиладе — вправо), снизу — все десять залов; нажатие на зал переносит туда */
     const mapEl=hud.querySelector(".mz-map"),mapC=mapEl.querySelector("canvas"),mapT=mapEl.querySelector(".mz-map-t"),mg=mapC.getContext("2d");
@@ -2969,7 +3052,7 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
       if(BOOK&&(hi>=IB)!==farOff){farOff=hi>=IB;if(farOff)cam.layers.disable(FAR);else cam.layers.enable(FAR)}
       {const mo=BOOK&&hi>=IB&&hi!==IB;if(mo!==midOff){midOff=mo;if(mo)cam.layers.disable(MID);else cam.layers.enable(MID)}}
       {const no=HALLZ[hi].branch==="r"||hi===IB2;if(no!==nearOff){nearOff=no;if(no)cam.layers.disable(NEAR);else cam.layers.enable(NEAR)}}
-      stepAir(dt);stepLights();stepDbl(dt,t,hi);stepProps(hi,t,dt);if(BOOK){stepNiche(t,hi);stepTower(t,hi);stepEmb(hi)}stepPhotos(hi);if(WORLD)stepWorld(hi,now);if(hi!==arrSync.h){arrSync.h=hi;arrSync(hi)}mus.want(HALLZ[hi].room&&HALLZ[hi].room.mus||HALLZ[hi].k);
+      stepAir(dt);stepLights();stepDbl(dt,t,hi);stepProps(hi,t,dt);if(BOOK){stepNiche(t,hi);stepTower(t,hi);stepEmb(hi)}stepPhotos(hi);if(BOOK)hsStep(hi);if(WORLD)stepWorld(hi,now);if(hi!==arrSync.h){arrSync.h=hi;arrSync(hi)}mus.want(HALLZ[hi].room&&HALLZ[hi].room.mus||HALLZ[hi].k);
       /* звуковые постели: тот же переход у проёмов, что и у воздуха залов (±2,5 м) */
       if(now-(frame._am||0)>120){const ddt=(now-(frame._am||now))/1000;frame._am=now;const {i,j,t:tt}=blendAt(P.x,P.z),W={};
         W[HALLZ[i].k]=1-tt;if(j!==i)W[HALLZ[j].k]=tt;snd.mix(W,ddt)}
@@ -3058,6 +3141,10 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
     canvas.__mz.fs=FS;canvas.__mz.chat=chat;
     /* этап 8, часть 2: предметы комнат посетителей, кнопка расстановки, старт мира, отладка; уход — освободить всё своё */
     if(WORLD){WR.forEach(wPlaceAll);goHall(W_START)}
+    /* этап 12: после «Применить без перезагрузки» — туда же, где стоял посетитель */
+    if(BOOK&&opt.resume&&isFinite(+opt.resume.x)&&isFinite(+opt.resume.z)&&inWalk(+opt.resume.x,+opt.resume.z)){P.x=+opt.resume.x;P.z=+opt.resume.z;P.yaw=C.yaw=+opt.resume.yaw||0;piv.set(P.x,1.55,P.z)}
+    canvas.__mz.hs=()=>({styles:Object.keys(HS),light:Object.assign({},HS_T),surf:Object.values(HSG).map(G=>({k:G.k,part:G.part,state:G.state,map:!!G.mat.map,color:G.def.color,slots:G.slots.length,applied:G.slots.filter(sl=>{const m=sl.mesh.material;return (Array.isArray(m)?m[sl.face===4?1:2]:m)===G.mat}).length,px:G.px||null})),
+      paint:HSP.map(P=>({k:P.k,j:P.j,title:P.p.title,on:P.on,vis:P.g.visible,state:P.state,map:!!P.tex,size:P.size,x:+P.g.position.x.toFixed(2),y:+P.g.position.y.toFixed(2),z:+P.g.position.z.toFixed(2),click:clickable.indexOf(P.im)>=0}))});
     arrInit();
     if(carry&&carry.fs)setTimeout(()=>{if(!stopped&&!FS.mode)FS.toggle()},60);
     stopFns.push(()=>{WTEX.forEach(t=>t.dispose());WTEX.clear();Object.values(WG).forEach(g=>g&&g.dispose());Object.values(WMT).forEach(m=>m.dispose());WR.forEach(Q=>{Object.values(Q.surf).forEach(G=>G.mat.dispose());Q.objs.forEach(Wo=>{if(Wo.imat)Wo.imat.dispose();if(Wo.pmat)Wo.pmat.dispose()});Q.meshes.forEach(m=>m.geometry.dispose());if(Q.plate.mesh){Q.plate.mesh.geometry.dispose();Q.plate.mesh.material.dispose()}});WAIR.forEach(k=>{delete AIR[k];delete SNDK[k]});window.__curHallName=""});
@@ -3070,5 +3157,10 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
   }
   return function stop(){if(stopped)return;if(opt.multi)opt.multi.leave();stopped=true;cancelAnimationFrame(raf);stopFns.splice(0).forEach(f=>{try{f()}catch(e){}});try{if(R){R.dispose();R.forceContextLoss&&R.forceContextLoss()}}catch(e){}};
 }
-return {mount,FLATS,CORR,treeSeason};
+/* этап 12: размеры залов для редактора оформления (метры): длины стен n/s/e/w, высота, исходные цвета, проёмы {стена:[ширина,высота,смещение]} */
+function hallInfo(){const o={};let z=0;SPEC.forEach((s,i)=>{const H=s.tall?8.5:(s.k==="pr"||s.k==="sv"||s.k==="dv"?4.6:4.2),d={},z0=z,z1=z-s.D;z=z1;if(i>0)d.s=[3,3,0];if(i<SPEC.length-1)d.n=[3,3,0];
+    if(i===0)d.w=[CORR.DW*2,CORR.DH,+((z0-CORR.DZ)-s.D/2).toFixed(2)];if(i===BASE_HALL)d.e=[BASE.DW*2,BASE.DH,+((BASE.DZ-z1)-s.D/2).toFixed(2)];
+    o[s.k]={L:{n:HW*2,s:HW*2,e:s.D,w:s.D},H,wall:s.wall,ceil:s.ceil,floor:"#8B6F55",doors:d}});
+  const W=+(BASE.x1-BASE.x0).toFixed(2),D=+(BASE.z0-BASE.z1).toFixed(2);o.hb={L:{n:D,s:D,e:W,w:W},H:BASE.H,wall:"#B7BDC3",ceil:"#2B2E34",floor:"#3A3D42",doors:{s:[BASE.DW*2,BASE.DH,+((BASE.z0-BASE.DZ)-D/2).toFixed(2)],n:[BASE2.DW*2,BASE2.DH,+((BASE2.DZ-BASE.z1)-D/2).toFixed(2)]}};return o}
+return {mount,FLATS,CORR,treeSeason,hallInfo,hallStyleValid:hsValid,hallPaintFit:hsFit};
 })();
