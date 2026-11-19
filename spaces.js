@@ -152,8 +152,8 @@ async function startNew(k,msgEl,btn){const m=await me();if(!m.id){window.Backend
 function floorHook(k){const host=document.querySelector(`[data-floorview="${k}"]`);if(host)floorSection(k,host)}
 async function museumHook(view){css();floorSection("-1",view);const m=await me();if(!m.owner||!view.isConnected)return;const head=view.querySelector(".page-head");if(!head||view.querySelector("#spOwnerBar"))return;
   const bar=document.createElement("div");bar.id="spOwnerBar";bar.className="sptools";bar.setAttribute("role","group");bar.setAttribute("aria-label","Для автора сайта");
-  bar.innerHTML=`<button type="button" class="spb" id="spObjAdd">Добавить предмет</button><button type="button" class="spb gh" id="spObjAll">Все предметы</button><button type="button" class="spb gh" id="spRev2">Заявки на пространства</button><button type="button" class="spb gh" id="spHall">Оформление залов</button>`;
-  head.after(bar);bar.querySelector("#spHall").onclick=()=>{const a=A();if(a&&a.loadHallUi)a.loadHallUi().then(H=>H&&H.open())};bar.querySelector("#spObjAdd").onclick=()=>objEditor(null);bar.querySelector("#spObjAll").onclick=()=>nav("objs-all");bar.querySelector("#spRev2").onclick=()=>nav("spaces-review");
+  bar.innerHTML=`<button type="button" class="spb" id="spObjAdd">Добавить предмет</button><button type="button" class="spb gh" id="spObjAll">Все предметы</button><button type="button" class="spb gh" id="spRev2">Заявки на пространства</button><button type="button" class="spb gh" id="spHall">Оформление залов</button><button type="button" class="spb gh" id="spHallAdd">Добавить зал</button>`;
+  head.after(bar);bar.querySelector("#spHall").onclick=()=>{const a=A();if(a&&a.loadHallUi)a.loadHallUi().then(H=>H&&H.open())};bar.querySelector("#spHallAdd").onclick=()=>{const a=A();if(a&&a.loadHallUi)a.loadHallUi().then(H=>H&&H.open("new"))};bar.querySelector("#spObjAdd").onclick=()=>objEditor(null);bar.querySelector("#spObjAll").onclick=()=>nav("objs-all");bar.querySelector("#spRev2").onclick=()=>nav("spaces-review");
   const n=await pendingCount(true);const b=bar.querySelector("#spRev2");if(b)b.textContent="Заявки на пространства · "+n}
 async function clubHook(){const v=document.querySelector("[data-clubview=club]");if(!v||!B())return;css();const host=A().view;if(host.querySelector("#spClub"))return;
   const m=await me();if(!document.querySelector("[data-clubview=club]"))return;const sec=document.createElement("section");sec.className="pblock spsec";sec.id="spClub";
@@ -203,7 +203,9 @@ async function editor(id,floor){const v=page("museum",`<div class="page-head"><d
   const body=v.querySelector("#spBody");const m=await me();
   if(!m.id){body.innerHTML=`<p class="sphint">Добавлять пространства могут вошедшие посетители.</p><button type="button" class="spb" id="spLogin">Войдите, чтобы добавить</button>`;body.querySelector("#spLogin").onclick=()=>window.Backend.login();return}
   const E={sp:null,objs:[],step:1,room:B().normRoom({}),floor:floor||"17",title:"",descr:"",editObj:null,q:Promise.resolve()};
-  if(id){try{const s=await B().get(id);if(!s.canEdit){body.innerHTML=`<p class="spmsg err" role="alert">${esc(msg("not_permitted"))}</p>`;return}E.sp=s;E.objs=s.objects;E.room=s.room;E.floor=s.floor;E.title=s.title;E.descr=s.descr}
+  if(id){try{const s=await B().get(id);if(!s.canEdit){body.innerHTML=`<p class="spmsg err" role="alert">${esc(msg("not_permitted"))}</p>`;return}E.sp=s;E.objs=s.objects;E.room=s.room;E.floor=s.floor;E.title=s.title;E.descr=s.descr;
+      /* этап 13: зал автора сайта — без проверки, виден всем сразу; стыковка и картины — в «Оформлении залов» */
+      if(s.kind==="hall"){const eb=v.querySelector(".page-head .eyebrow"),sb=v.querySelector(".page-head .sub");if(eb)eb.textContent="Зал автора сайта";if(sb)sb.textContent="Изменения видны всем сразу. Этаж, место стыковки, картины и свет — в «Оформлении залов»; здесь — предметы зала и их картинки."}}
     catch(e){body.innerHTML=`<p class="spmsg err" role="alert">${esc(msg(e))}</p>`;return}}
   if(!body.isConnected)return;
   body.innerHTML=`<div class="sped">
@@ -437,7 +439,10 @@ function nav3d(floor,id){floor=String(floor);const h=id?"space-"+id:"floor-"+(fl
 function liftGo(t){t=String(t||"");if(t==="book"){A().go("museum");return}if(FL_ORDER.indexOf(t)>=0)nav3d(t)}
 async function enterSpace(id){const v=page("museum",`<div id="spBody"><p class="sphint">Загружаем…</p></div>`);let s;
   try{s=await B().get(id)}catch(e){const b=v.querySelector("#spBody");if(b&&b.isConnected){b.innerHTML=`<div class="page-head"><div class="eyebrow">Пространства посетителей</div><h2>Не найдено</h2></div><p class="spmsg err" role="alert">${esc(e.code==="not_found"?"Пространство не найдено, ещё на проверке или скрыто. Войти в него могут только автор и автор сайта.":msg(e))}</p><div class="sptools"><button type="button" class="spb gh" id="spHome">На главную</button></div>`;b.querySelector("#spHome").onclick=()=>A().go("home")}return}
-  if(!v.isConnected||!(location.hash==="#space-"+id))return;return world3d(s.floor,id,s)}
+  if(!v.isConnected||!(location.hash==="#space-"+id))return;
+  /* этап 13: зал автора — ветка музея книги: открываем музей и входим в зал */
+  if(s.kind==="hall"&&s.hall&&s.hall.dock&&s.hall.dock.hall){const app=A();if(app.enterBranch){if(!app.adminHalls().some(x=>x.id===s.id))try{await app.reloadAdminHalls()}catch(e){}app.enterBranch(s.id);return}}
+  return world3d(s.floor,id,s)}
 async function world3d(floor,enterId,pre){floor=String(floor);const app=A();if(!B())return;
   const v=page("museum",`<div class="page-head"><div class="eyebrow">${esc(flName(floor))} · пространства посетителей · 3D</div><h2 id="w3h">${esc(pre?pre.title:"Пройти по этажу")}</h2><div class="sub">Коридор с дверями: за каждой — комната посетителя. Лифт в лобби везёт на другие этажи и в музей книги.</div></div>
    <div class="sptools"><button type="button" class="spb gh" id="w3back">${esc(floor==="-1"?"К музею книги":"К странице этажа "+flab(floor))}</button>${enterId?`<button type="button" class="spb gh" id="w3plan">План и список предметов</button>`:""}<span class="spmsg" id="w3msg" role="status"></span></div><div id="w3"><p class="sphint">Загружаем этаж…</p></div>`);

@@ -671,5 +671,5 @@ function wInf(){const v=A().view;v.querySelectorAll("[data-floor-go]").forEach(b
     t=setInterval(()=>{s--;el.textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");if(s<=0||!el.isConnected){clearInterval(t);t=null;if(el.isConnected)A().openUnit(154)}},1000)}}}
 
 document.addEventListener("appready",()=>init());
-return {go,lift,ride,state:()=>S,club,home,clubPage,homeBand,wireBand,bookDoublesSection,visitorPostsSection,wireVisitorPosts,pubRow,BOOK_DOUBLES,bookCtx,bookSys,alt,sampleErr,_auto:AUTO,stopAuto};
+return {FLOORS,go,lift,ride,state:()=>S,club,home,clubPage,homeBand,wireBand,bookDoublesSection,visitorPostsSection,wireVisitorPosts,pubRow,BOOK_DOUBLES,bookCtx,bookSys,alt,sampleErr,_auto:AUTO,stopAuto};
 })();

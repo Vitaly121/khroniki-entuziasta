@@ -120,6 +120,7 @@ const SP_MSG={
   login:"Войдите, чтобы продолжить.",
   limit_spaces:"У вас уже 3 пространства — это предел. Удалите одно, чтобы создать новое.",
   limit_objects:"В пространстве уже 24 предмета — это предел.",
+  limit_halls:"Залов автора уже 40 — это предел. Удалите один, чтобы добавить новый.",
   too_large:"Файл больше 2 МБ. Уменьшите его и попробуйте снова.",
   bad_type:"Подходят только изображения JPEG, PNG или WebP.",
   broken_image:"Не удалось прочитать изображение. Возможно, файл повреждён.",
@@ -134,6 +135,7 @@ function spMap(err){if(err&&err.code&&SP_MSG[err.code]&&!/^\d/.test(err.code))re
   if((typeof navigator!=="undefined"&&navigator.onLine===false)||/Failed to fetch|NetworkError|Load failed|network|fetch failed|ERR_/i.test(m))return spFail("offline",m);
   if(/limit: 3/.test(m))return spFail("limit_spaces",m);
   if(/limit: 24/.test(m))return spFail("limit_objects",m);
+  if(/limit: 40/.test(m))return spFail("limit_halls",m);
   if(st===413||/maximum allowed size|too large/i.test(m))return spFail("too_large",m);
   if(st===415||/mime type|invalid_mime/i.test(m))return spFail("bad_type",m);
   if(c==="42501"||st===403||/row-level security|permission denied|not_permitted|Unauthorized/i.test(m))return spFail("not_permitted",m);
@@ -172,7 +174,7 @@ async function spPrepare(file,onProgress,lim){lim=lim||{};const MAXS=lim.maxSide
   if(onProgress)onProgress({stage:"prepare",p:.4});
   return out}
 async function spUpload(file,opts){opts=opts||{};const me=await spNeedMe();const onP=opts.onProgress;
-  const prep=await spPrepare(file,onP);
+  const prep=await spPrepare(file,onP,opts.lim);
   const folder=opts.book?"book":me.id;if(opts.book&&!me.owner)throw spFail("not_permitted");
   const path=folder+"/"+spRand()+(prep.type==="image/webp"?".webp":".jpg");
   if(onP)onP({stage:"upload",p:.5});
@@ -197,23 +199,27 @@ function spPlace(p){p=p&&typeof p==="object"?p:{};const o={kind:p.kind==="ped"?"
   if(o.kind==="wall"&&["n","e","s","w"].indexOf(p.wall)>=0&&isFinite(+p.u)){o.wall=p.wall;o.u=+(+p.u).toFixed(2);o.y=isFinite(+p.y)?+(+p.y).toFixed(2):1.5}
   if(o.kind==="ped"&&isFinite(+p.x)&&isFinite(+p.z)){o.x=+(+p.x).toFixed(2);o.z=+(+p.z).toFixed(2);o.r=isFinite(+p.r)?Math.round(+p.r)%360:0}
   return o}
-const SP_COLS="id,owner,floor,title,descr,room,status,note,created_at,updated_at";
+const SP_COLS0="id,owner,floor,title,descr,room,status,note,created_at,updated_at";let SP_COLS=SP_COLS0+",kind,hall";
+/* этап 13: поля kind/hall появляются после server/schema4.sql. Пока их нет в базе — запросы идут с прежним набором полей (сайт не ломается) */
+let spColsP=null;function spCols(){if(!spColsP)spColsP=(async()=>{try{const sb=await client();const r=await sb.from("spaces").select("id,kind,hall").limit(1);const e=r&&r.error;
+  if(e){const m=String(e.message||"");if(String(e.code)==="42703"||/column/i.test(m))SP_COLS=SP_COLS0;else spColsP=null}}catch(e){spColsP=null}return SP_COLS})();return spColsP}
 const OB_COLS="id,space,owner,name,descr,img,place,sort,updated_at";
+const spIsHall=r=>!!r&&r.kind==="hall";
 async function spDecorate(rows){rows=rows||[];if(!rows.length)return rows;const sb=await client();
   const objs=await spRun(sb.from("space_objects").select("space").in("space",rows.map(r=>r.id)));const cnt={};(objs||[]).forEach(o=>cnt[o.space]=(cnt[o.space]||0)+1);
   let names={};try{names=await user.profiles([...new Set(rows.map(r=>r.owner))])}catch(e){}
-  return rows.map(r=>Object.assign({},r,{room:spRoom(r.room),count:cnt[r.id]||0,author:(names[r.owner]&&names[r.owner].name)||"посетитель",cover:spCover(r.room)}))}
+  return rows.map(r=>Object.assign({},r,{room:spRoom(r.room),kind:spIsHall(r)?"hall":"visitor",hall:spIsHall(r)?haNorm(r.hall):{},count:cnt[r.id]||0,author:spIsHall(r)?"автор сайта":(names[r.owner]&&names[r.owner].name)||"посетитель",cover:spCover(r.room)}))}
 const spaces={
   FLOORS:SP_FLOORS,LIMITS:SP_LIM,SIZES:SP_SIZES,message:c=>SP_MSG[c&&c.code||c]||SP_MSG.failed,url:spUrl,pathOk:spPathOk,normRoom:spRoom,normPlace:spPlace,roomImages:spRoomImgs,
   me:spMe,
   async list(floor){if(SP_FLOORS.indexOf(String(floor))<0)throw spFail("invalid");const sb=await client();
-    return spDecorate(await spRun(sb.from("spaces").select(SP_COLS).eq("floor",String(floor)).eq("status","approved").order("updated_at",{ascending:false}).limit(200)))},
-  async mine(){const me=await spNeedMe();const sb=await client();return spDecorate(await spRun(sb.from("spaces").select(SP_COLS).eq("owner",me.id).order("created_at",{ascending:true})))},
-  async get(id){const sb=await client();const rows=await spRun(sb.from("spaces").select(SP_COLS).eq("id",String(id)).limit(1));if(!rows||!rows.length)throw spFail("not_found");
+    await spCols();return (await spDecorate(await spRun(sb.from("spaces").select(SP_COLS).eq("floor",String(floor)).eq("status","approved").order("updated_at",{ascending:false}).limit(200)))).filter(r=>!spIsHall(r))},
+  async mine(){const me=await spNeedMe();const sb=await client();await spCols();return spDecorate(await spRun(sb.from("spaces").select(SP_COLS).eq("owner",me.id).order("created_at",{ascending:true})))},
+  async get(id){const sb=await client();await spCols();const rows=await spRun(sb.from("spaces").select(SP_COLS).eq("id",String(id)).limit(1));if(!rows||!rows.length)throw spFail("not_found");
     const [s]=await spDecorate(rows);const objs=await spRun(sb.from("space_objects").select(OB_COLS).eq("space",s.id).order("sort",{ascending:true}));
     s.objects=(objs||[]).map(o=>Object.assign({},o,{place:spPlace(o.place),url:spUrl(o.img)})).sort((a,b)=>(a.sort-b.sort)||String(a.id).localeCompare(String(b.id)));
     const me=await spMe();s.mine=!!me.id&&(s.owner===me.id);s.canEdit=s.mine||me.owner;return s},
-  async create(f){await spNeedMe();f=f||{};const sb=await client();
+  async create(f){await spNeedMe();f=f||{};const sb=await client();await spCols();
     const row={floor:String(f.floor),title:String(f.title||"").trim().slice(0,60),descr:String(f.descr||"").slice(0,600),room:spRoom(f.room)};
     if(SP_FLOORS.indexOf(row.floor)<0||!row.title)throw spFail("invalid");
     const d=await spRun(sb.from("spaces").insert(row).select(SP_COLS));if(!d||!d.length)throw spFail("not_permitted");return d[0]},
@@ -224,10 +230,10 @@ const spaces={
     if("room" in patch)row.room=spRoom(patch.room);
     if(!me.owner&&("status" in patch&&patch.status!=="pending"||"note" in patch))throw spFail("not_permitted");
     if(me.owner){if("status" in patch&&["pending","approved","hidden"].indexOf(patch.status)>=0)row.status=patch.status;if("note" in patch)row.note=String(patch.note||"").slice(0,300)}
-    if(!Object.keys(row).length)throw spFail("invalid");const sb=await client();
+    if(!Object.keys(row).length)throw spFail("invalid");const sb=await client();await spCols();
     const d=await spRun(sb.from("spaces").update(row).eq("id",String(id)).select(SP_COLS));if(!d||!d.length)throw spFail("not_permitted");return d[0]},
   async remove(id){await spNeedMe();const s=await spaces.get(id);if(!s.canEdit)throw spFail("not_permitted");const sb=await client();
-    const files=spRoomImgs(s.room).concat(s.objects.map(o=>o.img));
+    const files=spRoomImgs(s.room).concat(s.objects.map(o=>o.img),haImgs(s.hall));
     const d=await spRun(sb.from("spaces").delete().eq("id",s.id).select("id"));if(!d||!d.length)throw spFail("not_permitted");
     let f={requested:0,removed:0};try{f=await spRemoveFiles(files)}catch(e){f.error=e.code}return {id:s.id,files:f}},
   async addObject(space,o){await spNeedMe();o=o||{};const sb=await client();
@@ -251,11 +257,11 @@ const spaces={
     const cur=await spRun(sb.from("space_objects").select("id,sort").eq("space",String(space)));const by={};(cur||[]).forEach(o=>by[o.id]=o.sort);
     for(let i=0;i<ids.length;i++){if(by[ids[i]]===i)continue;const d=await spRun(sb.from("space_objects").update({sort:i}).eq("id",ids[i]).select("id"));if(!d||!d.length)throw spFail("not_permitted")}return true},
   /* часть 2: всё для 3D-этажа — одобренные пространства этажа и свои (любого статуса), с предметами; порядок — по времени создания */
-  async world(floor){floor=String(floor);if(SP_FLOORS.indexOf(floor)<0)throw spFail("invalid");const sb=await client();const me=await spMe();
+  async world(floor){floor=String(floor);if(SP_FLOORS.indexOf(floor)<0)throw spFail("invalid");const sb=await client();const me=await spMe();await spCols();
     const pub=await spRun(sb.from("spaces").select(SP_COLS).eq("floor",floor).eq("status","approved").order("created_at",{ascending:true}).limit(200));
     const own=me.id?await spRun(sb.from("spaces").select(SP_COLS).eq("floor",floor).eq("owner",me.id).order("created_at",{ascending:true})):[];
     const by=new Map();(pub||[]).concat(own||[]).forEach(r=>by.set(r.id,r));
-    const rows=(await spDecorate([...by.values()])).sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||""))||String(a.id).localeCompare(String(b.id)));
+    const rows=(await spDecorate([...by.values()])).filter(r=>!(spIsHall(r)&&r.hall.dock&&r.hall.dock.hall)).sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||""))||String(a.id).localeCompare(String(b.id)));
     if(!rows.length)return [];
     const objs=await spRun(sb.from("space_objects").select(OB_COLS).in("space",rows.map(r=>r.id)));const os={};
     (objs||[]).forEach(o=>(os[o.space]=os[o.space]||[]).push(Object.assign({},o,{place:spPlace(o.place),url:spUrl(o.img)})));
@@ -266,11 +272,56 @@ const spaces={
   uploadImage:spUpload,removeImages:spRemoveFiles,prepareImage:spPrepare,
   /* модерация: база пускает только админов, интерфейс лишь отражает */
   async review(status){const me=await spNeedMe();if(!me.owner)throw spFail("not_permitted");const sb=await client();
-    let q=sb.from("spaces").select(SP_COLS);if(status)q=q.eq("status",status);return spDecorate(await spRun(q.order("updated_at",{ascending:false}).limit(500)))},
+    await spCols();let q=sb.from("spaces").select(SP_COLS);if(status)q=q.eq("status",status);return (await spDecorate(await spRun(q.order("updated_at",{ascending:false}).limit(500)))).filter(r=>!spIsHall(r))},
   async pendingCount(){const me=await spMe();if(!me.owner)return 0;const sb=await client();const d=await spRun(sb.from("spaces").select("id").eq("status","pending").limit(500));return (d||[]).length},
   approve(id){return spaces.update(id,{status:"approved",note:""})},
   hide(id,note){return spaces.update(id,note==null?{status:"hidden"}:{status:"hidden",note})},
   returnWithNote(id,note){return spaces.update(id,{status:"pending",note:String(note||"").slice(0,300)})}
+};
+/* ---------- этап 13: залы автора сайта — строки spaces с kind='hall' (server/schema4.sql; форма hall — server/SPACES.md) ----------
+   Читают все (зал всегда «опубликован»), создаёт, правит и удаляет только админ (решает база). Предметы зала — space_objects, картинки — папка автора в бакете spaces */
+const HA_LIM={halls:40,bytes:7000,paintings:12,maxSide:2048,targetBytes:1200*1024};
+const HA_BOOK=["kv","pr","id","sv","dv","ot","se","n","kl","kr"];
+const haImgOk=p=>spPathOk(p)||hsSiteOk(p);
+function haNorm(h){h=h&&typeof h==="object"&&!Array.isArray(h)?h:{};const o={},d=h.dock;
+  if(d&&typeof d==="object"&&!Array.isArray(d)){if(HA_BOOK.indexOf(d.hall)>=0&&["n","e","s","w"].indexOf(d.wall)>=0&&isFinite(+d.at)&&d.at!==null&&d.at!=="")o.dock={hall:d.hall,wall:d.wall,at:+(+d.at).toFixed(2)};
+    else if(!d.hall)o.dock={after:typeof d.after==="string"&&/^(start|[0-9a-f-]{36})$/.test(d.after)?d.after:null,side:d.side==="l"||d.side==="r"?d.side:"auto"}}
+  if(Array.isArray(h.paintings)){const P=[];h.paintings.forEach(p=>{if(P.length>=HA_LIM.paintings||!p||typeof p!=="object"||!haImgOk(p.img))return;
+      P.push({img:p.img,title:typeof p.title==="string"?p.title.trim().slice(0,120):"",wall:["n","s","e","w"].indexOf(p.wall)>=0?p.wall:"n",u:hsNum(p.u,-40,40,0),w:hsNum(p.w,.2,6,1.4),h:hsNum(p.h,.2,6,1.05),y:hsNum(p.y,.3,8,1.5)})});
+    if(P.length)o.paintings=P}
+  if(["warm","cool","neutral"].indexOf(h.light)>=0)o.light=h.light;
+  if(typeof h.note==="string"&&h.note.trim())o.note=h.note.trim().slice(0,300);
+  return o}
+const haImgs=h=>((h&&h.paintings)||[]).map(p=>p.img).filter(spPathOk);
+async function haNeedAdmin(){const me=await spNeedMe();if(!me.owner)throw spFail("not_permitted");return me}
+let haP=null;
+const halls={
+  LIMITS:HA_LIM,BOOK:HA_BOOK,norm:haNorm,images:haImgs,imgOk:haImgOk,url:p=>spPathOk(p)?spUrl(p):hsSiteOk(p)?p:"",
+  /* все залы автора (все этажи) с предметами; без полей schema4 в базе — пусто */
+  load(opts){opts=opts||{};if(haP&&!opts.fresh)return haP;haP=(async()=>{const sb=await client();const cols=await spCols();if(cols===SP_COLS0)return [];
+      const rows=await spDecorate(await spRun(sb.from("spaces").select(SP_COLS).eq("kind","hall").order("created_at",{ascending:true}).limit(200)));if(!rows.length)return [];
+      const objs=await spRun(sb.from("space_objects").select(OB_COLS).in("space",rows.map(r=>r.id)));const os={};(objs||[]).forEach(o=>(os[o.space]=os[o.space]||[]).push(Object.assign({},o,{place:spPlace(o.place),url:spUrl(o.img)})));
+      const me=await spMe();return rows.filter(spIsHall).map(s=>Object.assign(s,{objects:(os[s.id]||[]).sort((a,b)=>(a.sort-b.sort)||String(a.id).localeCompare(String(b.id))),mine:!!me.id&&s.owner===me.id,canEdit:!!me.owner}))})();
+    haP.catch(()=>{haP=null});return haP},
+  async create(f){await haNeedAdmin();f=f||{};const sb=await client();await spCols();
+    const row={floor:String(f.floor),title:String(f.title||"").trim().slice(0,60),descr:String(f.descr||"").slice(0,600),room:spRoom(f.room),kind:"hall",status:"approved",hall:haNorm(f.hall)};
+    if(SP_FLOORS.indexOf(row.floor)<0||!row.title)throw spFail("invalid");if(JSON.stringify(row.hall).length>HA_LIM.bytes)throw spFail("invalid");
+    const d=await spRun(sb.from("spaces").insert(row).select(SP_COLS));if(!d||!d.length)throw spFail("not_permitted");haP=null;if(!spIsHall(d[0]))throw spFail("not_permitted");return (await spDecorate(d))[0]},
+  /* правка зала: название, подпись, этаж, комната (размер, поверхности), hall (стыковка, картины, свет, подпись при входе); ненужные картинки удаляются */
+  async save(id,f){await haNeedAdmin();f=f||{};const cur=await spaces.get(id);if(!spIsHall(cur))throw spFail("not_permitted");const row={};
+    if("floor" in f){if(SP_FLOORS.indexOf(String(f.floor))<0)throw spFail("invalid");row.floor=String(f.floor)}
+    if("title" in f){row.title=String(f.title||"").trim().slice(0,60);if(!row.title)throw spFail("invalid")}
+    if("descr" in f)row.descr=String(f.descr||"").slice(0,600);
+    if("room" in f)row.room=spRoom(f.room);
+    if("hall" in f){row.hall=haNorm(f.hall);if(JSON.stringify(row.hall).length>HA_LIM.bytes)throw spFail("invalid")}
+    if(!Object.keys(row).length)throw spFail("invalid");const sb=await client();
+    const d=await spRun(sb.from("spaces").update(row).eq("id",String(id)).select(SP_COLS));if(!d||!d.length)throw spFail("not_permitted");haP=null;
+    const n=(await spDecorate(d))[0];const keep=new Set(spRoomImgs(n.room).concat(haImgs(n.hall),cur.objects.map(o=>o.img)));
+    const old=spRoomImgs(cur.room).concat(haImgs(cur.hall)).filter(p=>!keep.has(p));if(old.length)spRemoveFiles(old).catch(()=>{});return n},
+  /* удалить зал: строка, предметы и все картинки (стены, картины, предметы) */
+  async remove(id){await haNeedAdmin();const s=await spaces.get(id);if(!spIsHall(s))throw spFail("not_permitted");const r=await spaces.remove(id);haP=null;return r},
+  uploadImage(file,opts){opts=opts||{};return haNeedAdmin().then(()=>spUpload(file,{onProgress:opts.onProgress,lim:{maxSide:HA_LIM.maxSide,targetBytes:HA_LIM.targetBytes}}))},
+  removeImages(paths){return spRemoveFiles((paths||[]).filter(spPathOk))}
 };
 /* правки предметов книги: читают все, пишут только админы */
 let oeP=null;
@@ -344,7 +395,7 @@ const hallStyles={
   removeImages(paths){return spRemoveFiles((paths||[]).filter(p=>hsPathOk(p)))}
 };
 const isAdmin=()=>spMe().then(m=>!!m.owner).catch(()=>false);
-window.Backend={login,logout,configured:true,guest:!hasSes,spaces,objEdits,hallStyles,isAdmin};
+window.Backend={login,logout,configured:true,guest:!hasSes,spaces,objEdits,hallStyles,halls,isAdmin};
 /* кнопка «Войти» в шапке и в подсказках открывает окно входа, а не Claude */
 document.addEventListener("click",ev=>{const a=ev.target.closest&&ev.target.closest(".whoin");if(a){ev.preventDefault();login()}},true);
 /* «Выйти» в подвале */

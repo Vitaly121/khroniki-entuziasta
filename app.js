@@ -41,6 +41,11 @@ function loadEdits(){if(!(window.Backend&&Backend.objEdits))return Promise.resol
 let HSTY={};
 function loadHallStyles(){if(!(window.Backend&&Backend.hallStyles))return Promise.resolve("none");let late=false;
   return Promise.race([Backend.hallStyles.load().then(m=>{if(late)return "late";HSTY=m||{};return "ok"}).catch(()=>"failed"),new Promise(r=>setTimeout(()=>{late=true;r("timeout")},1500))]).then(st=>{window.__hallStylesState=st;return st})}
+/* этап 13: залы автора сайта (строки spaces с kind="hall"): ветки музея книги и комнаты на этажах; ждём вместе с остальным ≤1,5 с */
+let AHALLS=[],MUS_ENTER=null;
+function loadAdminHalls(){if(!(window.Backend&&Backend.halls))return Promise.resolve("none");let late=false;
+  return Promise.race([Backend.halls.load().then(r=>{if(late)return "late";AHALLS=Array.isArray(r)?r:[];return "ok"}).catch(()=>"failed"),new Promise(r=>setTimeout(()=>{late=true;r("timeout")},1500))]).then(st=>{window.__adminHallsState=st;return st})}
+const bookBranches=()=>AHALLS.filter(s=>s&&s.floor==="-1"&&s.hall&&s.hall.dock&&s.hall.dock.hall);
 const hallStylesFor=()=>{try{return window.Backend&&Backend.hallStyles?Backend.hallStyles.resolve(HSTY):{}}catch(e){return {}}};
 /* редактор оформления — отдельный файл, грузится только у админа по кнопке */
 let hsUiP=null;
@@ -1229,8 +1234,11 @@ function showMuseum(tab){
     draw();m.querySelectorAll("[data-ch]").forEach(b=>b.onclick=()=>{catHall=b.dataset.ch;catN=60;m.querySelectorAll("[data-ch]").forEach(x=>x.setAttribute("aria-pressed",x===b));draw()});
     $("#cq").oninput=ev=>{catQ=ev.target.value;catN=60;draw()};
   } else {
-    const resume=MUS_RESUME;MUS_RESUME=null;
-    if(window.Museum){const stop=Museum.mount(m,{objs:OBJS,book:BY,halls:HALLS,get hallStyles(){return hallStylesFor()},resume:resume&&isFinite(resume.x)?resume:null,autostart:!!resume,
+    const resume=MUS_RESUME,enterB=MUS_ENTER;MUS_RESUME=null;MUS_ENTER=null;
+    if(window.Museum){const stop=Museum.mount(m,{objs:OBJS,book:BY,halls:HALLS,get hallStyles(){return hallStylesFor()},resume:resume&&isFinite(resume.x)?resume:null,autostart:!!resume||!!enterB,
+      branches:bookBranches(),enterBranch:enterB,spaceUrl:p=>window.Backend&&Backend.halls?Backend.halls.url(p):"",spaceMsg:e=>Backend.spaces.message(e),
+      onSpaceObj:(s,o,op)=>withSpaces(S=>S.objCard&&S.objCard(s,o,op)),
+      branchSave:window.Backend&&Backend.spaces?(s,o,place)=>Backend.spaces.place(o.id,place).then(r=>{const h=AHALLS.find(x=>x.id===s.id),ob=h&&h.objects.find(x=>x.id===o.id);if(ob)ob.place=r.obj.place;return r}):null,
       hallEdit:window.Backend&&Backend.hallStyles?{can:()=>Backend.isAdmin(),open:k=>loadHallUi().then(H=>H&&H.open(k==="hb2"?"hb":k))}:null,thumb:objThumb,photo:id=>imgOf(id),paint:PAINT,texUrl:n=>TEXIMG.has(n)?`img/tx_${n}.webp`:null,onObj:id=>showObj(id),onOpen:n=>openUnit(n),multi:window.Live?Live.museum():null,
       /* этап 8, часть 2: лифт на этажи посетителей и расстановка предметов автором сайта (только при подключённом сервере) */
       lift:window.Backend&&Backend.spaces?{go:t=>withSpaces(S=>S.liftGo&&S.liftGo(t))}:null,
@@ -1348,7 +1356,9 @@ const TEXT=new Promise(res=>{if(window.BOOKTEXT)return res();const s=document.cr
 function whenText(fn){return function(...args){if(window.__textReady)return fn.apply(this,args);clearView();view.innerHTML=`<p class="hint loading">Загружаются записи…</p>`;TEXT.then(()=>fn.apply(this,args))}}
 openUnit=(f=>function(n,...r){setHash("e"+n);return f.call(this,n,...r)})(whenText(openUnit));showSame=whenText(showSame);showFeed=whenText(showFeed);showVoices=whenText(showVoices);showVoice=whenText(showVoice);showMap=whenText(showMap);showMsgs=whenText(showMsgs);showTally=whenText(showTally);showSearch=whenText(showSearch);showPosts=whenText(showPosts);
 window.__APP={texUrl:n=>TEXIMG.has(n)?`img/tx_${n}.webp`:null,GROUPS,group,ORDER,BLOCKS,BOOK,BY,OBJS,HALLS,esc,view,clearView,setNav,showMuseum,openUnit,showObj,go,lab,imgOf,objThumb,getSampler,NET,cleanup:()=>cleanup,whenText,
-  OBJ_ALL,OBJ_ORIG,ORIGBY,HALL_KEYS,hallName,edits:()=>OBJ_EDITS,applyEdits,loadSpaces,hallStyles:()=>HSTY,setHallStyles:m=>{HSTY=m&&typeof m==="object"?m:{}},remountMuseum,loadHallUi,spaces:withSpaces,setHash,lightbox};document.dispatchEvent(new Event("appready"));
+  OBJ_ALL,OBJ_ORIG,ORIGBY,HALL_KEYS,hallName,edits:()=>OBJ_EDITS,applyEdits,loadSpaces,hallStyles:()=>HSTY,setHallStyles:m=>{HSTY=m&&typeof m==="object"?m:{}},remountMuseum,loadHallUi,spaces:withSpaces,setHash,lightbox,
+  adminHalls:()=>AHALLS,setAdminHalls:a=>{AHALLS=Array.isArray(a)?a:[]},reloadAdminHalls:()=>Backend.halls.load({fresh:true}).then(r=>{AHALLS=r||[];return AHALLS}),
+  enterBranch:id=>{MUS_ENTER=String(id);showMuseum()}};document.dispatchEvent(new Event("appready"));
 if(window.Backend&&Backend.spaces)loadSpaces();
-Promise.all([loadEdits(),loadHallStyles()]).then(()=>route(h));
+Promise.all([loadEdits(),loadHallStyles(),loadAdminHalls()]).then(()=>route(h));
 })();
