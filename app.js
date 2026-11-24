@@ -67,7 +67,7 @@ function remountMuseum(){const m=document.getElementById("mus");if(!m||!m.queryS
 /* пространства посетителей и редакторы — отдельный файл, грузится только при подключённом сервере */
 let spacesP=null;
 function loadSpaces(){if(!(window.Backend&&Backend.spaces))return Promise.resolve(null);
-  if(!spacesP)spacesP=new Promise(res=>{if(window.Spaces)return res(window.Spaces);const sc=document.createElement("script");sc.src="spaces.js?v=22";sc.onload=()=>res(window.Spaces||null);sc.onerror=()=>res(null);document.head.appendChild(sc)});return spacesP}
+  if(!spacesP)spacesP=new Promise(res=>{if(window.Spaces)return res(window.Spaces);const sc=document.createElement("script");sc.src="spaces.js?v=23";sc.onload=()=>res(window.Spaces||null);sc.onerror=()=>res(null);document.head.appendChild(sc)});return spacesP}
 const withSpaces=fn=>{loadSpaces().then(S=>{if(S)try{fn(S)}catch(e){}})};
 
 /* ---------- хранение у читателя ---------- */

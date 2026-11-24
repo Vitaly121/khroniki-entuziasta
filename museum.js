@@ -1875,7 +1875,8 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
     const fpMode=()=>C.want===0;
     const clampPitch=p=>{const L=fpMode()?PITCH_FP:PITCH_TP;return Math.max(L[0],Math.min(L[1],p))};
     const locked=()=>document.pointerLockElement===canvas;
-    const engaged=()=>locked()||document.activeElement===canvas;
+    /* этап 23: после закрытой карточки фокус остаётся на странице — зал всё равно считает клавиши своими, пока он на экране */
+    const engaged=()=>{if(locked()||document.activeElement===canvas)return true;const a=document.activeElement;if(a&&a!==document.body&&a!==document.documentElement)return false;if(wrap.classList.contains("mz-gated")||[...document.querySelectorAll(".overlay,.lbx,.loupe,.mz-lift,[role=dialog]:not([hidden])")].some(e=>e.offsetParent||e.getClientRects().length))return false;const r=wrap.getBoundingClientRect();return r.bottom>80&&r.top<innerHeight-80};
     const look=(dx,dy,k)=>{if(INS.on){insTurn(dx*k/.0042,dy*k/.0042);return}C.yaw-=dx*k;C.pitch=clampPitch(C.pitch-dy*k*.86);lastLook=performance.now()};
     function setView(w){w=Math.max(0,Math.min(MAX_DIST,w));if(w>0)C.last=w;C.want=w;C.pitch=clampPitch(C.pitch);if(w===0){C.cur=C.d=0;P.yaw=C.yaw}wrap.classList.toggle("mz-tp",w>0);syncView()}
     /* видимый переключатель вида: «из-за спины» / «от первого лица»; следует и за V, и за колесом */
@@ -1900,7 +1901,11 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
     const toggleSit=v=>{GS.sit=v===undefined?!GS.sit:!!v;if(GS.sit){GS.waveT=0;SEAT=seatNear();if(SEAT){P.yaw=SEAT.yaw;target=null}}syncG()};
     const gestNow=()=>GS.waveT>0?"wave":GS.sit?"sit":"";
     const gOk=v=>v==="wave"||v==="sit"?v:"";
-    const kd=ev=>{if(cust.isOpen||typing(ev.target)||ev.ctrlKey||ev.metaKey||ev.altKey)return;const c=ev.code;snd.gesture();
+    const kd=ev=>{
+      /* этап 23: E при открытой карточке вещи закрывает её */
+      if(ev.code==="KeyE"&&!ev.repeat&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey&&!cust.isOpen){const ov=document.querySelector(".overlay"),t=ev.target;
+        if(ov&&!document.querySelector(".lbx,.loupe")&&!(t&&t.closest&&t.closest("input,textarea,select,[contenteditable]"))){ev.preventDefault();const x=ov.querySelector("button.x");if(x)x.click();else ov.remove();try{canvas.focus({preventScroll:true})}catch(e){}return}}
+      if(cust.isOpen||typing(ev.target)||ev.ctrlKey||ev.metaKey||ev.altKey)return;const c=ev.code;snd.gesture();
       /* бег: Shift по фактическому состоянию (нажатие могло пройти мимо окна) и двойное нажатие «вперёд» */
       if(c!=="ShiftLeft"&&c!=="ShiftRight"){if(!ev.shiftKey)keys.ShiftLeft=keys.ShiftRight=false;else if(!keys.ShiftLeft&&!keys.ShiftRight)keys.ShiftLeft=true}
       if((c==="KeyW"||c==="ArrowUp")&&!ev.repeat){const n_=performance.now();if(n_-(kd.w||0)<320)keys.RunTap=true;kd.w=n_}
@@ -3229,7 +3234,7 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
     let MP=null;const MP_={mcx:0,br:[0,0,0,0],bb:[]};
     function libMap(){const W=mapC.clientWidth||232,dpr=Math.min(2,window.devicePixelRatio||1),Hh=MTOT,g=mg,G=LB.G;if(!W)return;if(mapC.width!==Math.round(W*dpr)||mapC.height!==Math.round(Hh*dpr)){mapC.width=Math.round(W*dpr);mapC.height=Math.round(Hh*dpr);mapC.style.height=Hh+"px"}
       /* этап 22: карта библиотеки — только пройденные залы этого яруса и двери из них; непройденное за дверью — пунктир */
-      g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle="#15110D";g.fillRect(0,0,W,Hh);const SC=6,MH=Hh-18,ox=W/2,oy=MH/2,mx=z=>ox+(P.z-z)*SC,my=x=>oy+(x-P.x)*SC,tn=Math.tan(Math.PI/6);
+      g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle="#15110D";g.fillRect(0,0,W,Hh);const SC=4.8,MH=Hh-18,ox=W/2,oy=MH/2,mx=z=>ox+(P.z-z)*SC,my=x=>oy+(x-P.x)*SC,tn=Math.tan(Math.PI/6);
       g.save();g.beginPath();g.rect(0,0,W,MH);g.clip();
       const hexP=(cx,cz)=>{g.beginPath();for(let i=0;i<6;i++){const ex=cx+G.NX[i]*G.A,ez=cz+G.NZ[i]*G.A,ux=-G.NZ[i]*G.A*tn,uz=G.NX[i]*G.A*tn;if(!i)g.moveTo(mx(ez-uz),my(ex-ux));g.lineTo(mx(ez+uz),my(ex+ux))}g.closePath()};
       const todo=[];

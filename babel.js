@@ -5,12 +5,12 @@
    Тексты книг — только случайные буквы. */
 window.Babel=(function(){
 "use strict";
-const A=4.2,H=3.4,SH=1.3,DW=1.5,DH=2.35,WT=.16;
+const A=5.5,H=3.4,SH=1.3,DW=1.5,DH=2.35,WT=.16;
 const W=2*A*Math.tan(Math.PI/6);
 const TH=[0,1,2,3,4,5].map(i=>i*Math.PI/3),NX=TH.map(Math.cos),NZ=TH.map(Math.sin);
 const DQ=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
 const E0=[2*A,0],E1=[2*A*Math.cos(Math.PI/3),2*A*Math.sin(Math.PI/3)];
-const SHELVES=5,NB=32,PAGES=410,LINES=40,COLS=80;
+const SHELVES=5,NB=42,PAGES=410,LINES=40,COLS=80;
 const ABC="абвгдежзиклмнопрстуфхц ,.";
 const STA=Math.PI/6,STR=2.55,SX=Math.cos(STA)*STR,SZ=Math.sin(STA)*STR;
 /* проходы: у каждого зала открыты две стороны с наименьшим счётом ребра; ребро общее с соседом, поэтому проход открыт,
