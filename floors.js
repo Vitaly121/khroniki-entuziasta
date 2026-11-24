@@ -160,7 +160,9 @@ function lift(k){const app=A();cur=k;st.set("cur",k);visited.add(k);st.set("visi
 /* ---------- маршрут ---------- */
 function go(k){const app=A();if(!app)return;k=String(k||"-1").replace(/^floor[-:]/,"");
   /* этап 8, часть 2: #floor-17/3d — пройти по этажу в 3D (только с сервером; без него — обычная страница этажа) */
-  {const m3=/^(m1|-1|17|43|551)\/3d$/.exec(k);if(m3){const f=m3[1]==="m1"?"-1":m3[1];if(window.Backend&&Backend.spaces&&app.spaces){cur=f;st.set("cur",f);visited.add(f);st.set("visited",[...visited]);app.spaces(Sp=>Sp.world3d&&Sp.world3d(f));return}k=f}}
+  /* этап 20: этаж ∞ — библиотека в том же 3D-движке; «inf/2d» — прежняя страница этажа (полки и касса) */
+  let inf2d=false;if(k==="inf/2d"){k="inf";inf2d=true}else if(k==="inf"&&window.Backend&&Backend.spaces&&app.spaces&&window.Babel&&window.Babel.geo)k="inf/3d";
+  {const m3=/^(m1|-1|17|43|551|inf)\/3d$/.exec(k);if(m3){const f=m3[1]==="m1"?"-1":m3[1];if(window.Backend&&Backend.spaces&&app.spaces){cur=f;st.set("cur",f);visited.add(f);st.set("visited",[...visited]);if(f==="inf")try{if(location.hash!=="#floor-inf/3d")history.pushState(null,"","#floor-inf/3d")}catch(e){}app.spaces(Sp=>Sp.world3d&&Sp.world3d(f));return}k=f}}
   k=k.replace(/^m1$/,"-1");
   if(/^invite:/.test(k)){const c=k.slice(7).toUpperCase();cur="43";st.set("pendingInvite",c);render("43");return}
   if(!FL[k])k="-1";
@@ -664,7 +666,7 @@ function fInf(){const app=A();const pick=(a,n)=>a.slice().sort(()=>Math.random()
   const bookO=pick(app.OBJS.filter(o=>app.imgOf(o.id)),12),vis=list("rooms","halls").flatMap(h=>(h.objs||[]).map(o=>Object.assign({},o,{hall:h.name}))),D=doubles().filter(d=>d.active),T=list("talks","items"),P=projects();
   const good=(tag,name,sub,attr,img)=>`<button type="button" class="good" ${attr}>${img?`<img alt="" loading="lazy" src="${esc(img)}">`:""}<span class="tag">${esc(tag)}</span><b>${esc(name)}</b>${sub?`<small>${esc(sub)}</small>`:""}</button>`;
   const aisle=(t,items)=>items.length?`<section class="shelf"><div class="aisle">${t}</div><div class="goods">${items.join("")}</div></section>`:"";
-  return `<div id="babel"></div>
+  return `${window.Backend&&Backend.spaces?`<p><button type="button" class="flbtn" data-go="floor:inf">Войти в библиотеку →</button></p>`:`<div id="babel"></div>`}
    <div class="flsec"><h3>Полки</h3><span class="hint">То, что на других этажах лежало порознь.</span></div>
    <p class="flnote">На этом этаже ничего нельзя добавить. Здесь лежит рядом то, что на других этажах лежало порознь, — как на полках магазина, где у каждой вещи есть цена: номер записи, в которую она возвращается.</p>
    <div class="shelves">

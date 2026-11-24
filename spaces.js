@@ -5,9 +5,9 @@ window.Spaces=(function(){
 "use strict";
 const A=()=>window.__APP,B=()=>window.Backend&&window.Backend.spaces,OE=()=>window.Backend&&window.Backend.objEdits;
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const FLN={"551":"Верстак","43":"Голоса","17":"Квартиры","-1":"Неотвеченное"};
+const FLN={"551":"Верстак","43":"Голоса","17":"Квартиры","-1":"Неотвеченное","inf":"Библиотека"};
 const FL_ORDER=["551","43","17","-1"];
-const flab=k=>k==="-1"?"−1":k;
+const flab=k=>k==="-1"?"−1":k==="inf"?"∞":k;
 const flName=k=>"Этаж "+flab(k)+" · "+FLN[k];
 const STATUS={pending:"на проверке",approved:"опубликовано",hidden:"скрыто"};
 const SIZE_NAMES={s:"Маленькая",m:"Средняя",l:"Большая"};
@@ -440,7 +440,7 @@ async function cardHook(ov,o){const m=await me();if(!m.owner||!ov.isConnected)re
 
 /* ---------- этап 8, часть 2: 3D — этаж посетителей (коридор с дверями), комнаты, лифт, карточка предмета ---------- */
 function nav3d(floor,id){floor=String(floor);const h=id?"space-"+id:"floor-"+(floor==="-1"?"m1":floor)+"/3d";try{if(location.hash!=="#"+h)history.pushState(null,"","#"+h)}catch(e){}return world3d(floor,id||null)}
-function liftGo(t){t=String(t||"");if(t==="book"){A().go("museum");return}if(t==="inf"){A().go("floor:inf");return}if(FL_ORDER.indexOf(t)>=0)nav3d(t)}
+function liftGo(t){t=String(t||"");if(t==="book"){A().go("museum");return}if(t==="inf"){nav3d("inf");return}if(FL_ORDER.indexOf(t)>=0)nav3d(t)}
 async function enterSpace(id){const v=page("museum",`<div id="spBody"><p class="sphint">Загружаем…</p></div>`);let s;
   try{s=await B().get(id)}catch(e){const b=v.querySelector("#spBody");if(b&&b.isConnected){b.innerHTML=`<div class="page-head"><div class="eyebrow">Пространства посетителей</div><h2>Не найдено</h2></div><p class="spmsg err" role="alert">${esc(e.code==="not_found"?"Пространство не найдено, ещё на проверке или скрыто. Войти в него могут только автор и автор сайта.":msg(e))}</p><div class="sptools"><button type="button" class="spb gh" id="spHome">На главную</button></div>`;b.querySelector("#spHome").onclick=()=>A().go("home")}return}
   if(!v.isConnected||!(location.hash==="#space-"+id))return;
@@ -452,11 +452,12 @@ async function world3d(floor,enterId,pre){floor=String(floor);const app=A();if(!
    <div class="sptools"><button type="button" class="spb gh" id="w3back">${esc(floor==="-1"?"К музею книги":"К странице этажа "+flab(floor))}</button>${enterId?`<button type="button" class="spb gh" id="w3plan">План и список предметов</button>`:""}<span class="spmsg" id="w3msg" role="status"></span></div><div id="w3"><p class="sphint">Загружаем этаж…</p></div>`);
   const host=v.querySelector("#w3");v.querySelector("#w3back").onclick=()=>app.go(floor==="-1"?"museum":"floor:"+floor);
   if(enterId)v.querySelector("#w3plan").onclick=()=>nav("space-plan-"+enterId);
-  let rows;try{rows=await B().world(floor)}catch(e){if(host.isConnected)host.innerHTML=`<p class="spmsg err" role="alert">${esc(msg(e))}</p>`;return}
+  const LIBF=floor==="inf";if(LIBF){const hd=v.querySelector(".page-head");hd.querySelector(".eyebrow").textContent="Этаж ∞ · библиотека · 3D";hd.querySelector("h2").textContent="Библиотека";hd.querySelector(".sub").textContent="Шестигранные залы без конца. Карты нет. Лифт — кнопка справа вверху или клавиша L.";v.querySelector("#w3back").textContent="К музею книги";v.querySelector("#w3back").onclick=()=>app.go("museum");const b2=document.createElement("button");b2.type="button";b2.className="spb gh";b2.textContent="Полки и касса этажа ∞";b2.onclick=()=>app.go("floor:inf/2d");v.querySelector("#w3back").after(b2)}
+  let rows;try{rows=LIBF?[]:await B().world(floor)}catch(e){if(host.isConnected)host.innerHTML=`<p class="spmsg err" role="alert">${esc(msg(e))}</p>`;return}
   if(enterId&&!rows.some(x=>x.id===enterId)){try{const s=pre||await B().get(enterId);if(s&&s.floor===floor)rows.push(s)}catch(e){}}
   if(!host.isConnected)return;
   if(!window.Museum){host.innerHTML=`<p class="sphint">Модуль музея не загрузился.</p>`;return}
-  host.innerHTML="";const stop=Museum.mount(host,{world:{floor,spaces:rows,enter:enterId||null,url:p=>B().url(p),onObj:(s,o,op)=>objCard(s,o,op),onLift:t=>liftGo(t),
+  host.innerHTML="";const stop=Museum.mount(host,{world:{floor,lib:LIBF,spaces:rows,enter:enterId||null,url:p=>B().url(p),onObj:(s,o,op)=>objCard(s,o,op),onLift:t=>liftGo(t),
       save:(s,o,place)=>B().place(o.id,place).then(r=>{dropCache();return r}),msg:e=>msg(e)},texUrl:app.texUrl||null,multi:window.Live?Live.museum():null});
   app.cleanup().push(stop);if(window.Live){const off=Live.panel(host,()=>window.__curHall||"",()=>window.__curHallName||"");app.cleanup().push(off)}
   window.__w3={floor,n:rows.length,enter:enterId||null}}

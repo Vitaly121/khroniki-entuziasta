@@ -196,5 +196,5 @@ function mount(host){const T=window.THREE;css();
   const stop=()=>{if(stopped)return;stopped=true;cancelAnimationFrame(raf);save();offs.forEach(f=>f());if(locked())document.exitPointerLock();cells.forEach(drop);cells.clear();dgeo.dispose();dust.material.dispose();if(AU.ctx)try{AU.ctx.close()}catch(e){}Object.values(G).forEach(g=>g.dispose());Object.values(M).forEach(m=>m.dispose());R.dispose()};
   wrap.__bb={P,cells,valid,pick,openBook,stairs,sync,jump,pageText,get near(){return nearSt},start};
   return stop}
-return {mount,pageText,spine,hash};
+return {mount,pageText,spine,hash,css,geo:{A,H,SH,DW,DH,WT,W,TH,NX,NZ,DQ,E0,E1,SHELVES,NB,PAGES,SX,SZ,isDoor,dark,rng,hash}};
 })();
