@@ -12,7 +12,7 @@ const DQ=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
 const E0=[2*A,0],E1=[2*A*Math.cos(Math.PI/3),2*A*Math.sin(Math.PI/3)];
 const SHELVES=5,NB=32,PAGES=410,LINES=40,COLS=80;
 const ABC="абвгдежзиклмнопрстуфхц ,.";
-const STA=Math.PI/6,STR=3.15,SX=Math.cos(STA)*STR,SZ=Math.sin(STA)*STR;
+const STA=Math.PI/6,STR=2.55,SX=Math.cos(STA)*STR,SZ=Math.sin(STA)*STR;
 /* проходы: у каждого зала открыты две стороны с наименьшим счётом ребра; ребро общее с соседом, поэтому проход открыт,
    если его выбрал хотя бы один из двух залов. Выходит от двух до пяти проходов — лабиринт без края, свой на каждом ярусе */
 const DC=new Map();

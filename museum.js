@@ -573,7 +573,7 @@ function mount(host,opt){
   /* слушатели регистрируются через on(), чтобы stop() снял их все */
   const on=(t,type,fn,o)=>{t.addEventListener(type,fn,o);stopFns.push(()=>t.removeEventListener(type,fn,o))};
   wrap.classList.add("mz","mz-tp");injectStyle();stopFns.push(releaseStyle);
-  /* этап 8, часть 2: в мирах посетителей музыка залов не предлагается */if(WORLD){wrap.classList.add("mz-world");stopFns.push(()=>wrap.classList.remove("mz-world"))}
+  /* этап 8, часть 2: в мирах посетителей музыка залов не предлагается */if(WORLD&&!WORLD.lib){wrap.classList.add("mz-world");stopFns.push(()=>wrap.classList.remove("mz-world"))}
   const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
   /* этап 9: квартиры ветки — из данных (FLATS; для проверки — window.__MZ_FLATS). Ключи комнат не совпадают с залами */
   const FL=(Array.isArray(window.__MZ_FLATS)?window.__MZ_FLATS:FLATS).filter(f=>f&&f.id&&isFinite(f.dx)&&(f.side==="n"||f.side==="s"));
@@ -1127,7 +1127,17 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
         const pw=hi===Q.hi||hi===p;if(pw&&!Q.plate.tex)wPlate(Q);else if(!pw&&Q.plate.tex)wPlateOff(Q)})}
 
     const LBM=LB?{st:new T.MeshLambertMaterial({color:0xFFFFFF}),bk:new T.MeshLambertMaterial({color:0xFFFFFF}),fl:new T.MeshLambertMaterial({color:0x3A2E24,side:T.DoubleSide}),flD:new T.MeshLambertMaterial({color:0x17120E,side:T.DoubleSide}),bulb:new T.MeshBasicMaterial({color:0xFFE7B0})}:null;
-    const LBG=LB?{box:new T.BoxGeometry(1,1,1),floor:new T.RingGeometry(LB.G.SH,LB.G.A/Math.cos(Math.PI/6),6,1,Math.PI/6),bulb:new T.SphereGeometry(.16,14,10)}:null;
+    const LB_RI=.3,LB_RO=1.05,LB_NS=16,LB_A0=Math.PI/6+Math.PI;
+    /* пол яруса: шестиугольник с шахтой в центре и проёмом лестницы */
+    function libFloorGeo(){const G=LB.G,Rv=G.A/Math.cos(Math.PI/6),sh=new T.Shape(),hx=(R,k)=>[Math.cos(Math.PI/6+k*Math.PI/3)*R,-Math.sin(Math.PI/6+k*Math.PI/3)*R];
+      for(let k=0;k<6;k++){const p=hx(Rv,k);if(k)sh.lineTo(p[0],p[1]);else sh.moveTo(p[0],p[1])}sh.closePath();
+      const h1=new T.Path();for(let k=5;k>=0;k--){const p=hx(G.SH,k);if(k<5)h1.lineTo(p[0],p[1]);else h1.moveTo(p[0],p[1])}h1.closePath();sh.holes.push(h1);
+      const h2=new T.Path();h2.absarc(G.SX,-G.SZ,LB_RO+.04,0,Math.PI*2,true);sh.holes.push(h2);return new T.ShapeGeometry(sh,20)}
+    const LBG=LB?{box:new T.BoxGeometry(1,1,1),floor:libFloorGeo(),bulb:new T.SphereGeometry(.16,14,10)}:null;
+    /* высота ступеней под точкой: −1 — не лестница, Infinity — столб, иначе высота витка */
+    function libRamp(x,z){const G=LB.G,dx=x-G.SX,dz=z-G.SZ,r=Math.hypot(dx,dz);if(r<LB_RI)return Infinity;if(r>LB_RO)return -1;let th=(Math.atan2(dz,dx)-LB_A0)%(Math.PI*2);if(th<0)th+=Math.PI*2;return th/(Math.PI*2)*G.H}
+    function libStand(x,z,y,step){if(!libValid(x,z))return false;const h=libRamp(x,z);if(h===Infinity)return false;if(h<0)return y<.6;if(h<=y+step)return true;return y<.4&&h>LB.G.H-.5}
+    function libGround(x,z,lim){const h=libRamp(x,z);return h>=0&&h<Infinity&&h<=lim?h:0}
     const lbM=[new T.Matrix4(),new T.Matrix4(),new T.Matrix4()],lbC=new T.Color();
     const LBW=LB?LB.G.TH.map((t,i)=>new T.Matrix4().makeTranslation(LB.G.NX[i]*(LB.G.A-LB.G.WT/2),0,LB.G.NZ[i]*(LB.G.A-LB.G.WT/2)).multiply(new T.Matrix4().makeRotationY(Math.PI/2-t))):null;
     const LBBOOK=[0x6B2A22,0x7A4A22,0x2F4A38,0x2B3A55,0x8A7A52,0x4A2E3A,0x5A5148,0x9A8A6A,0x3A4A4A,0x7A2E2E];
@@ -1139,7 +1149,9 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
       for(let i=0;i<6;i++){if(G.isDoor(q,r,L,i)){const sw=(W-G.DW)/2;put(LBW[i],-(G.DW/2+sw/2),H/2,0,sw,H,G.WT,0x4B3828);put(LBW[i],G.DW/2+sw/2,H/2,0,sw,H,G.WT,0x4B3828);put(LBW[i],0,G.DH+(H-G.DH)/2,0,G.DW,H-G.DH,G.WT,0x4B3828)}
         else{walls.push(i);put(LBW[i],0,H/2,0,W,H,G.WT,0x4B3828);for(let s=0;s<G.SHELVES;s++)put(LBW[i],0,.28+s*.56,-.24,W-.5,.04,.3,0x5E4832)}}
       for(let k=0;k<6;k++){const t=k*Math.PI/3,ap=G.SH*Math.cos(Math.PI/6);[1.02,.55].forEach(y=>put(null,Math.cos(t)*ap,y,Math.sin(t)*ap,G.SH,.05,.05,0x9A7A42,Math.PI/2-t));const tv=t+Math.PI/6;put(null,Math.cos(tv)*G.SH,.52,Math.sin(tv)*G.SH,.06,1.04,.06,0x9A7A42)}
-      put(null,G.SX,H/2,G.SZ,.16,H,.16,0x2A2019);for(let k=0;k<15;k++){const a=k/15*Math.PI*2;put(null,G.SX+Math.cos(a)*.42,(k+.5)*H/15,G.SZ-Math.sin(a)*.42,.7,.05,.26,0x35281D,a)}
+      /* винтовая лестница: по ней идут ногами; виток — один ярус, верх витка — пол следующего яруса */
+      put(null,G.SX,H/2,G.SZ,.22,H,.22,0x2A2019);for(let k=0;k<LB_NS;k++){const th=(k+.5)/LB_NS*Math.PI*2,a=LB_A0+th,rc=(LB_RI+LB_RO)/2;put(null,G.SX+Math.cos(a)*rc,(k+.5)/LB_NS*H-.03,G.SZ+Math.sin(a)*rc,LB_RO-LB_RI,.06,.34,0x35281D,-a);
+        if(k%2===0)put(null,G.SX+Math.cos(a)*LB_RO,(k+.5)/LB_NS*H+.5,G.SZ+Math.sin(a)*LB_RO,.04,1,.04,0x9A7A42)}
       st.count=n;st.instanceMatrix.needsUpdate=true;if(st.instanceColor)st.instanceColor.needsUpdate=true;g.add(st);g.userData.st=st;
       const NB=G.NB,bk=new T.InstancedMesh(LBG.box,LBM.bk,Math.max(1,walls.length*G.SHELVES*NB)),Rn=G.rng(G.hash(q,r,L,1,2,3));let bi=0;
       walls.forEach(wi=>{for(let s=0;s<G.SHELVES;s++){let x=-(W-.7)/2;const step=(W-.7)/NB,cutB=Rn()<.07?Math.floor(Rn()*NB):NB;for(let b=0;b<NB;b++){const bw=step*(.72+Rn()*.22),bh=.3+Rn()*.14,lean=Rn()<.06?(Rn()-.5)*.3:0,gone=Rn()<.05||b>=cutB;
@@ -1147,9 +1159,9 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
           col.setHex(LBBOOK[Math.floor(Rn()*LBBOOK.length)]);col.offsetHSL(0,0,(Rn()-.5)*.08);if(dk)col.multiplyScalar(.42);bk.setColorAt(bi,col);bi++;x+=step}}});
       bk.count=bi;bk.instanceMatrix.needsUpdate=true;if(bk.instanceColor)bk.instanceColor.needsUpdate=true;bk.userData={walls,q,r,L};g.add(bk);g.userData.bk=bk;
       if(!dk)[Math.PI*5/6,Math.PI*3/2].forEach(t=>{const b=new T.Mesh(LBG.bulb,LBM.bulb);b.position.set(Math.cos(t)*2.6,H-.55,Math.sin(t)*2.6);g.add(b)});
-      S.add(g);floors.push(fl);camBlock.push(st);return g}
-    function libDrop(g){S.remove(g);const u=g.userData;let i=floors.indexOf(u.fl);if(i>=0)floors.splice(i,1);i=camBlock.indexOf(u.st);if(i>=0)camBlock.splice(i,1);u.st.dispose();u.bk.dispose()}
-    function libValid(x,z){const G=LB.G;if(LB.climb)return false;if(Math.hypot(x,z)<G.SH+.42)return false;if(Math.hypot(x-G.SX,z-G.SZ)<.62)return false;
+      S.add(g);floors.push(fl);camBlock.push(st);camBlock.push(fl);return g}
+    function libDrop(g){S.remove(g);const u=g.userData;let i=floors.indexOf(u.fl);if(i>=0)floors.splice(i,1);i=camBlock.indexOf(u.st);if(i>=0)camBlock.splice(i,1);i=camBlock.indexOf(u.fl);if(i>=0)camBlock.splice(i,1);u.st.dispose();u.bk.dispose()}
+    function libValid(x,z){const G=LB.G;if(LB.climb)return false;if(Math.hypot(x,z)<G.SH+.42)return false;
       for(let i=0;i<6;i++){const d=G.NX[i]*x+G.NZ[i]*z;if(G.isDoor(LB.q,LB.r,LB.L,i)){const lat=-G.NZ[i]*x+G.NX[i]*z;if(d>G.A-.5&&Math.abs(lat)>G.DW/2-.34)return false;if(d>G.A+1.2)return false}else if(d>G.A-.82)return false}return true}
     function libWid(){const o=WID;WID="inf:"+LB.q+","+LB.r+","+LB.L;if(o!==WID)delete WHI[o];WHI[WID]=0;if(HALLZ[0])HALLZ[0].wid=WID}
     function libPlace(){const G=LB.G;LB.cells.forEach(g=>{const u=g.userData,dq=u.q-LB.q,dr=u.r-LB.r;g.position.set(dq*G.E0[0]+dr*G.E1[0],(u.L-LB.L)*G.H-LB.oy,dq*G.E0[1]+dr*G.E1[1])})}
@@ -1161,13 +1173,13 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
     function libLayout(){const G=LB.G;WN.wi="Библиотека";let sp={x:0,z:2.4,yaw:Math.PI};
       try{const s=JSON.parse(lsGet("cv2_babel")||"null");if(s&&[s.q,s.r,s.L,s.x,s.z].every(Number.isFinite)){LB.q=s.q|0;LB.r=s.r|0;LB.L=s.L|0;sp={x:s.x,z:s.z,yaw:+s.yaw||0}}else{const rnd=n=>Math.floor((Math.random()*2-1)*n);LB.q=rnd(40000);LB.r=rnd(40000);LB.L=rnd(9000)}}catch(e){}
       if(!libValid(sp.x,sp.z))sp={x:0,z:2.4,yaw:Math.PI};
-      HALLZ.push({k:"wi",side:true,world:"c",wid:WID,floor:"concreteDark",D:G.A*2,z0:1e6,z1:-1e6,x0:-1e6,x1:1e6,H:G.H,cz:0,cx:0,pools:[{x:2.4,z:0,r:2,w:.02},{x:-1.2,z:2.1,r:2,w:.02},{x:-1.2,z:-2.1,r:2,w:.02}],name:"Библиотека",short:"Библиотека",spawn:sp,hit:[-1e6,1e6,-1e6,1e6]});
+      HALLZ.push({k:"wi",side:true,world:"c",wid:WID,floor:"concreteDark",D:G.A*2,z0:1e6,z1:-1e6,x0:-1e6,x1:1e6,H:9,cz:0,cx:0,pools:[{x:2.4,z:0,r:2,w:.02},{x:-1.2,z:2.1,r:2,w:.02},{x:-1.2,z:-2.1,r:2,w:.02}],name:"Библиотека",short:"Библиотека",spawn:sp,hit:[-1e6,1e6,-1e6,1e6]});
       libWid();LB.lamp=new T.PointLight(0xFFD49A,1.0,15,1.6);S.add(LB.lamp);
       const DN=matchMedia("(pointer:coarse)").matches?110:240,dp=new Float32Array(DN*3),dv=new Float32Array(DN*3);for(let i=0;i<DN;i++){dp[i*3]=(Math.random()-.5)*9;dp[i*3+1]=Math.random()*3;dp[i*3+2]=(Math.random()-.5)*9;dv[i*3]=(Math.random()-.5)*.05;dv[i*3+1]=(Math.random()-.5)*.03;dv[i*3+2]=(Math.random()-.5)*.05}
       const dg=new T.BufferGeometry();dg.setAttribute("position",new T.BufferAttribute(dp,3));const pts=new T.Points(dg,new T.PointsMaterial({color:0xFFE6BE,size:.022,transparent:true,opacity:.55,depthWrite:false}));pts.frustumCulled=false;S.add(pts);LB.dust={n:DN,p:dp,v:dv,g:dg,pts};
       /* кнопки библиотеки: лифт — всегда, ярусы — у лестницы; окно тома */
-      if(!document.getElementById("mzLibCss")){const st=document.createElement("style");st.id="mzLibCss";st.textContent=`.hallwrap.mz-lib .mz-map,.hallwrap.mz-lib .hallbar,.hallwrap.mz-lib .mz-found{display:none!important}
-.mz-libui{position:absolute;right:12px;top:calc(64px + var(--mz-top,0px));display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:auto;z-index:3}
+      if(!document.getElementById("mzLibCss")){const st=document.createElement("style");st.id="mzLibCss";st.textContent=`.hallwrap.mz-lib .mz-found{display:none!important}
+.mz-libui{position:absolute;left:14px;top:calc(96px + var(--mz-top,0px));display:flex;flex-direction:column;align-items:flex-start;gap:6px;pointer-events:auto;z-index:3}
 .mz-libui button{min-height:38px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.3);background:rgba(12,14,16,.82);color:#EEF1F3;font:500 13px/1 system-ui,sans-serif;cursor:pointer}
 .mz-libui button[hidden]{display:none}.hallwrap .bb-book{z-index:40}`;document.head.appendChild(st)}
       if(window.Babel.css)window.Babel.css();
@@ -1189,9 +1201,11 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
     function libStairs(d){if(!LB||LB.climb||!LB.near)return;pause();target=null;LB.climb={d,t:0,x:P.x,z:P.z};snd.cue("chat")}
     function libStep(dt,now){const G=LB.G;if(!LB.cells.size)libSync();
       if(LB.climb){const c=LB.climb;c.t+=dt/(reduce?.35:1.5);const k=Math.min(1,c.t),e=k*k*(3-2*k);LB.oy=c.d*G.H*e;P.x=c.x;P.z=c.z;P.y=0;V.x=V.z=V.vy=0;V.ground=true;
-        if(k>=1){LB.L+=c.d;LB.oy=0;LB.climb=null;if(!libValid(P.x,P.z)){const t=Math.PI/6+Math.PI/2.2;P.x=G.SX+Math.cos(t)*.95;P.z=G.SZ+Math.sin(t)*.95}libWid();libSync();libSave()}else libPlace()}
-      else{for(let i=0;i<6;i++){if(!G.isDoor(LB.q,LB.r,LB.L,i))continue;if(G.NX[i]*P.x+G.NZ[i]*P.z>G.A){const dx=G.NX[i]*2*G.A,dz=G.NZ[i]*2*G.A;LB.q+=G.DQ[i][0];LB.r+=G.DQ[i][1];P.x-=dx;P.z-=dz;piv.x-=dx;piv.z-=dz;if(target){target.x-=dx;target.z-=dz}libWid();libSync();libSave();break}}
-        const ns=Math.hypot(P.x-G.SX,P.z-G.SZ)<1.5;if(ns!==LB.near){LB.near=ns;LB.ui.querySelector('[data-lb="up"]').hidden=!ns;LB.ui.querySelector('[data-lb="down"]').hidden=!ns}
+        if(k>=1){LB.L+=c.d;LB.oy=0;LB.climb=null;if(!libStand(P.x,P.z,0,.22)){P.x=0;P.z=2.4}libWid();libSync();libSave()}else libPlace()}
+      else{{const h=libRamp(P.x,P.z);let d=0;if(h>=0&&h<Infinity){if(P.y<.4&&h>G.H-.5)d=-1;else if(P.y>G.H-.5&&h<.6)d=1}
+          if(d){LB.L+=d;P.y-=d*G.H;piv.y-=d*G.H;libWid();libSync();libSave()}}
+        for(let i=0;i<6;i++){if(!G.isDoor(LB.q,LB.r,LB.L,i))continue;if(G.NX[i]*P.x+G.NZ[i]*P.z>G.A){const dx=G.NX[i]*2*G.A,dz=G.NZ[i]*2*G.A;LB.q+=G.DQ[i][0];LB.r+=G.DQ[i][1];P.x-=dx;P.z-=dz;piv.x-=dx;piv.z-=dz;if(target){target.x-=dx;target.z-=dz}libWid();libSync();libSave();break}}
+        const ns=Math.hypot(P.x-G.SX,P.z-G.SZ)<1.9&&P.y<.3;if(ns!==LB.near){LB.near=ns;LB.ui.querySelector('[data-lb="up"]').hidden=!ns;LB.ui.querySelector('[data-lb="down"]').hidden=!ns}
         if(now-(libStep.s||0)>4000){libStep.s=now;libSave()}}
       const t=now/1000;LB.lamp.position.set(P.x,2.15,P.z);LB.lamp.intensity=reduce?1:.98+Math.sin(t*7.3)*.03+Math.sin(t*17.1)*.02;
       const D=LB.dust,dp=D.p,dv=D.v;for(let i=0;i<D.n;i++){const j=i*3;dp[j]+=dv[j]*dt;dp[j+1]+=dv[j+1]*dt;dp[j+2]+=dv[j+2]*dt;if(dp[j]-P.x>4.5)dp[j]-=9;else if(dp[j]-P.x<-4.5)dp[j]+=9;if(dp[j+2]-P.z>4.5)dp[j+2]-=9;else if(dp[j+2]-P.z<-4.5)dp[j+2]+=9;if(dp[j+1]>3.1)dp[j+1]=.1;else if(dp[j+1]<.05)dp[j+1]=3}D.g.attributes.position.needsUpdate=true}
@@ -1794,12 +1808,12 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
     const over=(b,x,zz)=>x>b[0]-r&&x<b[1]+r&&zz>b[2]-r&&zz<b[3]+r;
     /* можно ли стоять в (x,z), если ступни на высоте y: всё, что под квадратом фигуры, должно быть не выше y+step */
     /* этап 9: и над головой должно хватать места — до потолка пространства и до низа подвешенного над квадратом фигуры */
-    function canStand(x,zz,y,step){if(!inWalk(x,zz))return false;y=y||0;const lim=y+(step==null?STEP:step),hd=y+HEAD;if(hd>HALLZ[hallAt(zz,x)].H+1e-6)return false;
+    function canStand(x,zz,y,step){if(LB)return libStand(x,zz,y||0,step==null?STEP:step);if(!inWalk(x,zz))return false;y=y||0;const lim=y+(step==null?STEP:step),hd=y+HEAD;if(hd>HALLZ[hallAt(zz,x)].H+1e-6)return false;
       for(let i=0;i<blockers.length;i++){const b=blockers[i];if(b[5]){if(b[5]<hd-1e-6&&b[6]>y+1e-6&&over(b,x,zz))return false}else if(b[4]>lim&&over(b,x,zz))return false}return true}
     function conflicts(x,zz,y,step){const out=[],lim=y+step,hd=y+HEAD;if(hd>HALLZ[hallAt(zz,x)].H+1e-6)out.push(-1);
       for(let i=0;i<blockers.length;i++){const b=blockers[i];if(!over(b,x,zz))continue;if(b[5]?(b[5]<hd-1e-6&&b[6]>y+1e-6):b[4]>lim)out.push(i)}return out}
     /* опора под фигурой: самый высокий верх среди стоящих на полу препятствий под её квадратом (не выше y+step), иначе пол */
-    function groundAt(x,zz,y,step){const lim=(y||0)+(step==null?STEP:step);let g=0;for(let i=0;i<blockers.length;i++){const b=blockers[i];if(!b[5]&&b[4]<=lim&&b[4]>g&&over(b,x,zz))g=b[4]}return g}
+    function groundAt(x,zz,y,step){if(LB)return libGround(x,zz,(y||0)+(step==null?STEP:step));const lim=(y||0)+(step==null?STEP:step);let g=0;for(let i=0;i<blockers.length;i++){const b=blockers[i];if(!b[5]&&b[4]<=lim&&b[4]>g&&over(b,x,zz))g=b[4]}return g}
     /* потолок над фигурой: высота пространства или низ подвешенного над ней (люстра, вытяжка, перемычка проёма) */
     function ceilAt(x,zz,y){let c=HALLZ[hallAt(zz,x)].H;for(let i=0;i<blockers.length;i++){const b=blockers[i];if(b[5]&&b[5]>y&&b[5]<c&&over(b,x,zz))c=b[5]}return c}
     /* шаг со скольжением вдоль стен: на земле заблокированная ось гасит свою скорость; в воздухе скорость остаётся,
@@ -1965,22 +1979,36 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
       if(INS.cam.aspect!==cam.aspect){INS.cam.aspect=cam.aspect;INS.cam.updateProjectionMatrix()}INS.cam.fov=cam.aspect<.8?46:32;INS.cam.updateProjectionMatrix()}
     stopFns.push(()=>{insDrop();INS.on=false});
     /* ---------- этап 20: взять вещь в руку (T): фигура держит её перед собой, в виде от первого лица вещь видна внизу справа; T ещё раз — положить на место ---------- */
-    const HOLD={on:false,id:"",g:null,fp:null,S:null,cam:null,lod:null};
-    function holdMake(id){let g=null;if(id.slice(0,5)==="book:"){g=new T.Group();const c=parseInt(id.slice(5),16)||0x6B2A22;const b=new T.Mesh(new T.BoxGeometry(.05,.21,.15),new T.MeshLambertMaterial({color:c})),pg=new T.Mesh(new T.BoxGeometry(.04,.19,.145),new T.MeshLambertMaterial({color:0xE9E0CC}));pg.position.set(.004,0,.004);g.add(b);g.add(pg)}
+    const HOLD={on:false,id:"",g:null,fp:null,S:null,cam:null,lod:null,restore:null};
+    function holdMake(id){let g=null;if(id.slice(0,5)==="prop:"){g=new T.Group();g.add(new T.Mesh(new T.CylinderGeometry(.04,.035,.13,16),new T.MeshLambertMaterial({color:parseInt(id.slice(5),16)||0xDCE8EE})))}else if(id.slice(0,5)==="book:"){g=new T.Group();const c=parseInt(id.slice(5),16)||0x6B2A22;const b=new T.Mesh(new T.BoxGeometry(.05,.21,.15),new T.MeshLambertMaterial({color:c})),pg=new T.Mesh(new T.BoxGeometry(.04,.19,.145),new T.MeshLambertMaterial({color:0xE9E0CC}));pg.position.set(.004,0,.004);g.add(b);g.add(pg)}
       else{const o=OBJM[id];if(!o)return null;const th=thing(o),bb=new T.Box3().setFromObject(th),sz=bb.getSize(new T.Vector3()),ct=bb.getCenter(new T.Vector3()),sc=Math.min(1,.24/Math.max(sz.x,sz.y,sz.z,.05));th.scale.setScalar(sc);th.position.set(-ct.x*sc,-ct.y*sc,-ct.z*sc);g=new T.Group();g.add(th)}
       return g}
+    /* мелкая вещь обстановки (стакан, бутылка, книга на полке…): то, на что смотрит точка, не больше полуметра. Берётся вместе с соседними частями; на месте исчезает, T возвращает */
+    const prRay=new T.Raycaster(),prV=new T.Vector2(),prS=new T.Vector3(),prP=new T.Vector3(),prQ=new T.Quaternion();
+    function propTake(){const list=((PROPS&&PROPS.meshes)||[]).filter(me=>me.visible&&me.userData.items);if(!list.length)return null;prV.set(0,0);prRay.layers.enableAll();prRay.setFromCamera(prV,cam);prRay.far=C.d+2.6;const h=prRay.intersectObjects(list,false)[0];if(!h||!h.face)return null;
+      const items=h.object.userData.items,vi=h.face.a,small=it=>{if(it.geo===PROPS.G.plane||it.v0==null||it.taken)return false;it.m.decompose(prP,prQ,prS);return Math.max(Math.abs(prS.x),Math.abs(prS.y),Math.abs(prS.z))<=.5};
+      const hit=items.find(it=>it.v0!=null&&vi>=it.v0&&vi<it.v0+it.vn);if(!hit||!small(hit))return null;hit.m.decompose(prP,prQ,prS);const c0=prP.clone();
+      const cl=items.filter(it=>small(it)&&Math.hypot(prP.x-c0.x,prP.z-c0.z)<.14&&Math.abs(prP.y-c0.y)<.3).slice(0,8);
+      const pos=h.object.geometry.attributes.position,save=[],g=new T.Group(),inv=new T.Matrix4().makeTranslation(-c0.x,-c0.y,-c0.z),glass=!!h.object.material.transparent;let ext=.05;
+      cl.forEach(it=>{it.taken=true;save.push([it,pos.array.slice(it.v0*3,(it.v0+it.vn)*3)]);for(let i=it.v0;i<it.v0+it.vn;i++)pos.setXYZ(i,c0.x,-50,c0.z);
+        const me=new T.Mesh(it.geo,new T.MeshLambertMaterial({color:it.c.getHex(),transparent:glass,opacity:glass?.55:1}));me.matrixAutoUpdate=false;me.matrix.copy(inv).multiply(it.m);g.add(me);
+        it.m.decompose(prP,prQ,prS);ext=Math.max(ext,Math.abs(prS.x),Math.abs(prS.y),Math.abs(prS.z),Math.abs(prP.y-c0.y)*2)});
+      pos.needsUpdate=true;g.scale.setScalar(Math.min(1,.28/ext));const w=new T.Group();w.userData.shared=true;w.add(g);
+      return {group:w,color:hit.c.getHex(),restore(){save.forEach(([it,a])=>{pos.array.set(a,it.v0*3);it.taken=false});pos.needsUpdate=true}}}
     function holdAttach(fig,g){g.position.set(0,-.6,.1);g.rotation.set(-1.15,0,0);fig.armR.add(g)}
-    function holdFree(g){if(!g)return;if(g.parent)g.parent.remove(g);g.traverse(x=>{if(x.geometry)x.geometry.dispose();const mm=x.material;(Array.isArray(mm)?mm:mm?[mm]:[]).forEach(q=>q.dispose())})}
-    function holdPut(){if(!HOLD.on)return;holdFree(HOLD.g);holdFree(HOLD.fp);HOLD.g=HOLD.fp=null;if(HOLD.lod)HOLD.lod.th.visible=true;HOLD.lod=null;HOLD.on=false;HOLD.id="";P.hd="";snd.cue("chat");frame._t=null}
-    function holdToggle(){if(HOLD.on){holdPut();return}let id="";
-      if(INS.on){id=INS.id;insClose()}else if(!WORLD&&nearObj&&nearObj.userData.id&&OBJM[nearObj.userData.id])id=nearObj.userData.id;
+    function holdFree(g){if(!g)return;if(g.parent)g.parent.remove(g);const sh=!!g.userData.shared;g.traverse(x=>{if(x.geometry&&!sh)x.geometry.dispose();const mm=x.material;(Array.isArray(mm)?mm:mm?[mm]:[]).forEach(q=>q.dispose())})}
+    function holdPut(){if(!HOLD.on)return;holdFree(HOLD.g);holdFree(HOLD.fp);HOLD.g=HOLD.fp=null;if(HOLD.lod)HOLD.lod.th.visible=true;HOLD.lod=null;if(HOLD.restore){HOLD.restore();HOLD.restore=null}HOLD.on=false;HOLD.id="";P.hd="";snd.cue("chat");frame._t=null}
+    function holdToggle(){if(HOLD.on){holdPut();return}let id="",pr=null;
+      if(INS.on){id=INS.id;insClose()}else if(!WORLD&&nearObj&&nearObj.userData.id&&OBJM[nearObj.userData.id]&&BOOKPED[nearObj.userData.id]===nearObj)id=nearObj.userData.id;
       else if(LB){const b=libPickC();if(b)id="book:"+b.color.toString(16)}
-      if(!id){nearEl.hidden=false;nearEl.textContent=LB?"Наведите точку на том и нажмите T":"Подойдите к вещи и нажмите T";frame._t=null;return}
-      const g=holdMake(id);if(!g)return;HOLD.g=g;HOLD.id=id;HOLD.on=true;P.hd=id;holdAttach(me.userData.fig,g);
+      if(!id){pr=propTake();if(pr)id="prop:"+pr.color.toString(16)}
+      if(!id){nearEl.hidden=false;nearEl.textContent=LB?"Наведите точку на том и нажмите T":"Подойдите к вещи или наведите на неё точку и нажмите T";frame._t=null;return}
+      const g=pr?pr.group:holdMake(id);if(!g)return;HOLD.restore=pr?pr.restore:null;HOLD.g=g;HOLD.id=id;HOLD.on=true;P.hd=id;holdAttach(me.userData.fig,g);
       HOLD.lod=LODS.find(L=>L.grp===BOOKPED[id])||null;if(HOLD.lod)HOLD.lod.th.visible=false;
       if(!HOLD.S){HOLD.S=new T.Scene();HOLD.cam=new T.PerspectiveCamera(50,cam.aspect,.05,5);HOLD.S.add(new T.HemisphereLight(0xFFFFFF,0x5A544C,1));const dl=new T.DirectionalLight(0xFFFFFF,.6);dl.position.set(.5,1,.8);HOLD.S.add(dl)}
-      HOLD.fp=holdMake(id);HOLD.fp.position.set(.22,-.14,-.55);HOLD.fp.rotation.set(.1,-.5,0);HOLD.S.add(HOLD.fp);if(markFound(id))snd.cue("found");else snd.cue("chat")}
-    stopFns.push(()=>{holdFree(HOLD.g);holdFree(HOLD.fp);if(HOLD.lod)HOLD.lod.th.visible=true});
+      HOLD.fp=pr?pr.group.clone():holdMake(id);if(pr)HOLD.fp.userData.shared=true;HOLD.fp.position.set(.22,-.14,-.55);HOLD.fp.rotation.set(.1,-.5,0);HOLD.S.add(HOLD.fp);if(markFound(id))snd.cue("found");else snd.cue("chat")}
+    window.__mzSmallProps=()=>{const out=[];((PROPS&&PROPS.meshes)||[]).forEach(me=>{if(!me.visible)return;(me.userData.items||[]).forEach(it=>{if(it.geo===PROPS.G.plane||it.v0==null)return;it.m.decompose(prP,prQ,prS);if(Math.max(Math.abs(prS.x),Math.abs(prS.y),Math.abs(prS.z))<=.3&&Math.min(Math.abs(prS.x),Math.abs(prS.y),Math.abs(prS.z))>=.07&&prP.y>.7&&prP.y<1.3)out.push([+prP.x.toFixed(2),+prP.y.toFixed(2),+prP.z.toFixed(2)])})});return out};
+    stopFns.push(()=>{holdFree(HOLD.g);holdFree(HOLD.fp);if(HOLD.lod)HOLD.lod.th.visible=true;if(HOLD.restore)try{HOLD.restore()}catch(e){}});
     function activate(o){if(locked())document.exitPointerLock();pause();if(o.userData.lift){liftOpen();return}if(o.userData.sobj){wOpenObj(o);return}if(o.userData.photo){openPhoto(o.userData.photo);return}if(o.userData.go){snd.cue("chat");const nav=(window.__APP&&window.__APP.go)||window.__goMsgs;if(nav)nav(o.userData.go);return}if(o.userData.id){if(INS.on&&INS.id===o.userData.id){insCard();return}if(markFound(o.userData.id))snd.cue("found");if(insOpen(o))return;if(opt.onObj)opt.onObj(o.userData.id)}}
     /* кнопки залов */
     /* «База Героев» в полосе залов — сразу после «Квартир», как ответвление */
@@ -1988,7 +2016,7 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
     const BRI=HALLZ.map((h,i)=>h.branch&&!(h.room&&h.room.bar===false)?i:-1).filter(i=>i>=0);
     /* этап 13: ветка зала автора — сразу после своего зала */
     const ABI=p=>BRQ.filter(Q=>Q.br.i===p).map(Q=>Q.hi);
-    bar.innerHTML=LB?"":WORLD?wBar():[0,...BRI.filter(i=>!HALLZ[i].abr),...ABI(0),...HALLZ.slice(1,NH).flatMap((_,i)=>(i+1===BASE_HALL?[i+1,IB,IB2]:[i+1]).concat(ABI(i+1)))].map(i=>{const h=HALLZ[i],bs=i===IB||i===IB2,br=bs||h.branch;
+    bar.innerHTML=LB?'<button type="button" data-h="0">Библиотека</button>':WORLD?wBar():[0,...BRI.filter(i=>!HALLZ[i].abr),...ABI(0),...HALLZ.slice(1,NH).flatMap((_,i)=>(i+1===BASE_HALL?[i+1,IB,IB2]:[i+1]).concat(ABI(i+1)))].map(i=>{const h=HALLZ[i],bs=i===IB||i===IB2,br=bs||h.branch;
       return `<button type="button" data-h="${i}"${br?` class="mz-branch" title="${bs?"Боковой зал у «Предметов» · "+TN(h.k):h.abr?"Зал автора у зала «"+HN(SPEC[h.par].k)+"» · "+HN(h.k):"Боковая ветка у «Квартир» · "+HN(h.k)}"`:""}>${br?"↳ ":""}${h.branch?h.short:bs?BASE_T[h.k][1]:HN(h.k)}</button>`}).join("");
     function goHall(i){const hz=HALLZ[i];if(!hz)return;const sd=!!hz.side,sp=hz.spawn;P.x=sp?sp.x:sd?BASE.x0+1.2:0;P.z=sp?sp.z:sd?BASE.DZ:hz.z0-2.2;P.yaw=sp?sp.yaw:sd?-Math.PI/2:0;P.y=0;C.yaw=P.yaw;C.pitch=clampPitch(-.2);V.x=V.z=V.vy=0;V.ground=true;target=null;piv.set(P.x,1.55,P.z);try{canvas.focus({preventScroll:true})}catch(e){}}
     bar.querySelectorAll("button").forEach(b=>b.onclick=()=>goHall(+b.dataset.h));
@@ -2323,15 +2351,15 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
           const ix=g.index.array;for(let i=0;i<ix.length;i++)idx[io+i]=ix[i]+vo;vo+=cnt;io+=ix.length});
         const out=new T.BufferGeometry();out.setAttribute("position",new T.BufferAttribute(pos,3));out.setAttribute("normal",new T.BufferAttribute(nor,3));out.setAttribute("color",new T.BufferAttribute(col,3));
         if(uv)out.setAttribute("uv",new T.BufferAttribute(uv,2));out.setIndex(new T.BufferAttribute(idx,1));out.computeBoundingSphere();return out}
-      const propProxy=[];
-      function finish(){const out=[];halls.forEach(H=>{const ms=[],xs=[];const mk=(items,mat,tex,lst)=>{const g=merge(H,items,tex);if(!g)return null;const me=new T.Mesh(g,mat);me.matrixAutoUpdate=false;me.userData.prop=H.k;S.add(me);lst.push(me);return me};
+      const propProxy=[],PM=[];
+      function finish(){const out=[];halls.forEach(H=>{const ms=[],xs=[];const mk=(items,mat,tex,lst)=>{const g=merge(H,items,tex);if(!g)return null;const me=new T.Mesh(g,mat);me.matrixAutoUpdate=false;me.userData.prop=H.k;me.userData.items=items;PM.push(me);S.add(me);lst.push(me);return me};
           mk(H.L.c.plain,M.plain,false,ms);mk(H.L.c.tex,M.tex,true,ms);mk(H.L.glass,M.glass,false,ms);mk(H.L.gtex,M.gtex,true,ms);mk(H.L.x.plain,M.plain,false,xs);mk(H.L.x.tex,M.tex,true,xs);
           const bm=mk(H.L.blink,M.blink,false,ms);
           /* свои материалы (этап 6: мишени в нише меняют цвет материала — без перезаливки буферов) */
           Object.keys(H.L.cm).forEach(n=>{const cmM=CM[n];if(cmM)mk(H.L.cm[n],cmM,!!cmM.map,ms)});
           out.push({k:H.k,hi:H.hi,core:ms,extra:xs,blink:bm?{mesh:bm,items:H.L.blink}:null,parts:H.L.c.plain.length+H.L.c.tex.length+H.L.glass.length+H.L.gtex.length+H.L.blink.length+H.L.x.plain.length+H.L.x.tex.length,nx:H.L.x.plain.length+H.L.x.tex.length})});
         return out}
-      return {kit,finish,atlasTex,M,G,propProxy,CELL,CM}})();
+      return {kit,finish,atlasTex,M,G,propProxy,CELL,CM,meshes:PM}})();
 
     /* ---------- этап 10: эмблема «Базы Героев» — только файл автора (img/base_emblem.webp) как текстура: на экранах мониторов, на стене и у вывески над входом.
        Грузится лениво, когда посетитель в «Квартирах» или в «Базе»; пока не загрузилась или если не загрузилась — ровная оранжевая панель. Уходит вместе с музеем ---------- */
@@ -3156,7 +3184,9 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
     on(mapT,"click",()=>{setMap(!mapOpen);if(!coarse.matches)lsSet("cv2_mz_map",mapOpen?"1":"0")});
     const MAPC=HALLZ.map(h=>{const c=new T.Color(AIR[h.k].fog);return `rgba(${c.r*255|0},${c.g*255|0},${c.b*255|0},.38)`});
     let MP=null;const MP_={mcx:0,br:[0,0,0,0],bb:[]};
-    function drawMap(){if(WORLD){drawMapW();return}if(MPX!==drawMap.mpx){drawMap.mpx=MPX;MP=null}const W=mapC.clientWidth||232,dpr=Math.min(2,window.devicePixelRatio||1),g=mg;if(!W)return;
+    function libMap(){const W=mapC.clientWidth||232,dpr=Math.min(2,window.devicePixelRatio||1),Hh=MTOT;if(!W)return;if(mapC.width!==Math.round(W*dpr)||mapC.height!==Math.round(Hh*dpr)){mapC.width=Math.round(W*dpr);mapC.height=Math.round(Hh*dpr);mapC.style.height=Hh+"px"}
+      mg.setTransform(dpr,0,0,dpr,0,0);mg.fillStyle="#1A1410";mg.fillRect(0,0,W,Hh);mg.fillStyle="#CFC6B4";mg.font="13px system-ui,sans-serif";mg.textAlign="center";mg.textBaseline="middle";mg.fillText("В библиотеке карты нет",W/2,Hh/2);mg.textAlign="left";mg.textBaseline="alphabetic";mapDirty=false}
+    function drawMap(){if(LB){libMap();return}if(WORLD){drawMapW();return}if(MPX!==drawMap.mpx){drawMap.mpx=MPX;MP=null}const W=mapC.clientWidth||232,dpr=Math.min(2,window.devicePixelRatio||1),g=mg;if(!W)return;
       if(mapC.width!==Math.round(W*dpr)||mapC.height!==Math.round(MTOT*dpr)){mapC.width=Math.round(W*dpr);mapC.height=Math.round(MTOT*dpr)}
       if(!MP)MP=clickable.filter(o=>o.userData.id&&!o.userData.go).map(o=>({o,b:hb(o),id:o.userData.id}));
       /* в «Базе» окрестность сдвигается поперёк, чтобы зал был виден целиком */
@@ -3207,7 +3237,7 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
       {const[x,y]=cell(P.z,P.x);g.fillStyle="#FFFFFF";g.strokeStyle="#0E1013";g.beginPath();g.arc(x,y,2.8,0,7);g.fill();g.stroke()}
       mapDirty=false}
     on(mapC,"pointerdown",ev=>ev.stopPropagation());
-    on(mapC,"click",ev=>{if(WORLD){mapClickW(ev);return}const rc=mapC.getBoundingClientRect();if(!rc.width)return;const x=(ev.clientX-rc.left)*(mapC.clientWidth/rc.width),y=(ev.clientY-rc.top)*(MTOT/rc.height),W=mapC.clientWidth;let i=-1;
+    on(mapC,"click",ev=>{if(LB)return;if(WORLD){mapClickW(ev);return}const rc=mapC.getBoundingClientRect();if(!rc.width)return;const x=(ev.clientX-rc.left)*(mapC.clientWidth/rc.width),y=(ev.clientY-rc.top)*(MTOT/rc.height),W=mapC.clientWidth;let i=-1;
       if(y>=MLH+MGAP+MSH+1){const row1=y<MP_.br[1]+MP_.br[3]+2;if(row1&&x>=MP_.br[0]-1&&x<=MP_.br[0]+MP_.br[2]+1)i=IB;else if(row1&&MP_.br2&&x>=MP_.br2[0]-1&&x<=MP_.br2[0]+MP_.br2[2]+1)i=IB2;else{const q=(MP_.bb||[]).find(q=>x>=q[0]-1&&x<=q[0]+q[2]+1&&(row1?q[1]===MP_.br[1]:q[1]!==MP_.br[1]));if(q)i=q[4]}}
       else if(y>=MLH+MGAP/2)i=Math.floor(x/(W/NH));else{const zz=P.z-(x-W*.42)/MSC,xx=(y-MLH/2)/MSC+MP_.mcx,ab=BRQ.find(Q=>{const b=HALLZ[Q.hi].hit;return xx>=b[0]&&xx<=b[1]&&zz>=b[2]&&zz<=b[3]});i=ab?ab.hi:xx>BASE.xm&&zz<=BASE.z0&&zz>=BASE.z1&&xx<=BASE.x1+.2?IB:xx>BASE2.xm&&zz<=BASE2.z0&&zz>=BASE2.z1&&xx<=BASE2.x1?IB2:xx<CORR.xm?(k=>{const h=HALLZ[k];return xx>=h.x0-.3&&xx<=h.x1+.3&&zz<=h.z0+.3&&zz>=h.z1-.3?k:-1})(hallAt(zz,xx)):HALLZ.findIndex(h=>!h.side&&zz<=h.z0&&zz>=h.z1)}
       if(i>=0&&i<HALLZ.length)goHall(i)});
@@ -3308,7 +3338,7 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
       if(!INS.on&&(best!==nearObj||touch!==frame._t)){nearObj=best;frame._t=touch;if(bAct)bAct.dataset.on=best?"1":"0";const dbl=!!(best&&best.userData.dbl);setAct(dbl?"talk":"look",dbl?best.userData.label:"");
         if(best){nearEl.hidden=false;nearEl.textContent=dbl?best.userData.label+" · двойник — "+(touch?"кнопка «говорить»":"E, чтобы поговорить"):(best.userData.label||"Предмет")+(best.userData.n?" · запись "+best.userData.n:"")+(touch?" — кнопка «смотреть»":best.userData.id&&!WORLD&&OBJM[best.userData.id]?" — E: рассмотреть · T: взять":" — E или клик")}else nearEl.hidden=true}
       if(opt.multi){peersStep(dt,hi,t);stepBubbles(fp);voiceStep(now,hi)}
-      stepHL(t);if(now-(frame._lh||0)>350){frame._lh=now;layHud()}if(mapOpen&&!LB&&(mapDirty||now-mapT0>(lite?250:66))){mapT0=now;drawMap()}stepFps(now);
+      stepHL(t);if(now-(frame._lh||0)>350){frame._lh=now;layHud()}if(mapOpen&&(mapDirty||now-mapT0>(lite?250:66))){mapT0=now;drawMap()}stepFps(now);
       stepLOD();if(INS.on)insStep();R.render(S,cam);calls=R.info.render.calls;if(INS.on&&INS.hold){const ac=R.autoClear;R.autoClear=false;R.clearDepth();R.render(INS.S,INS.cam);R.autoClear=ac}
       else if(HOLD.on&&HOLD.fp&&fp){if(HOLD.cam.aspect!==cam.aspect){HOLD.cam.aspect=cam.aspect;HOLD.cam.updateProjectionMatrix()}const ac=R.autoClear;R.autoClear=false;R.clearDepth();R.render(HOLD.S,HOLD.cam);R.autoClear=ac}raf=requestAnimationFrame(frame);
     }
