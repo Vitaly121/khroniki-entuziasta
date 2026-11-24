@@ -617,12 +617,13 @@ function showHome(){
 let feedFilter="all",feedQ="";
 function showFeed(){
   clearView();setNav("feed");
-  view.innerHTML=`<div class="page-head"><div class="eyebrow">Лента · ${BOOK.length} записей</div><h2>Год по порядку</h2><div class="sub">Все голоса вперемешку, как в книге. Прочитанные отмечены точкой.</div></div>
+  view.innerHTML=`<div class="page-head"><div class="eyebrow">Лента · ${window.SiteDate&&!SiteDate.all()?BOOK.filter(e=>SiteDate.has(e.n)).length+" из "+BOOK.length:BOOK.length} записей</div><h2>Год по порядку</h2><div class="sub">Все голоса вперемешку, как в книге. Прочитанные отмечены точкой.</div></div>
    <div class="tools"><div class="seg" role="group" aria-label="Голос">${[["all","Все"],...Object.entries(GROUPS).map(([k,g])=>[k,g.name])].map(([k,t])=>`<button type="button" data-ff="${k}" aria-pressed="${feedFilter===k}">${esc(t)}</button>`).join("")}</div>
     <input type="search" id="fq" placeholder="Поиск по тексту" value="${esc(feedQ)}" aria-label="Поиск по тексту"></div><div id="fl"></div>`;
-  const draw=()=>{const q=feedQ.toLowerCase();const byB={};
-    BOOK.filter(e=>(feedFilter==="all"||group(e)===feedFilter)&&(!q||(e.t+" "+textOf(e)).toLowerCase().includes(q))).forEach(e=>(byB[e.b]=byB[e.b]||[]).push(e));
-    $("#fl").innerHTML=Object.keys(byB).length?Object.keys(byB).sort((a,b)=>a-b).map(b=>`<section class="month"><div class="when"><b>${esc(BLOCKS[b][1])}</b>${esc(BLOCKS[b][0])}</div><div class="rows">${byB[b].map(e=>`<button type="button" class="row${seen.has(e.n)?" read":""}" data-open="${e.n}"><span class="n">${e.n}</span><span class="t">${esc(e.t)}<small>${esc(snippet(e,120))}</small></span><span class="v"><span class="vmark" style="background:${color(e)}"></span>${esc(e.who)}</span></button>`).join("")}</div></section>`).join(""):`<p class="hint">Ничего не нашлось.</p>`};
+  const draw=()=>{const q=feedQ.toLowerCase();const byB={};const SDt=window.SiteDate,later=SDt&&!SDt.all()?BOOK.filter(e=>!SDt.has(e.n)).length:0;
+    BOOK.filter(e=>(!SDt||SDt.has(e.n))&&(feedFilter==="all"||group(e)===feedFilter)&&(!q||(e.t+" "+textOf(e)).toLowerCase().includes(q))).forEach(e=>(byB[e.b]=byB[e.b]||[]).push(e));
+    $("#fl").innerHTML=Object.keys(byB).length?Object.keys(byB).sort((a,b)=>a-b).map(b=>`<section class="month"><div class="when"><b>${esc(BLOCKS[b][1])}</b>${esc(BLOCKS[b][0])}</div><div class="rows">${byB[b].map(e=>`<button type="button" class="row${seen.has(e.n)?" read":""}" data-open="${e.n}"><span class="n">${e.n}</span><span class="t">${esc(e.t)}<small>${esc(snippet(e,120))}</small></span><span class="v"><span class="vmark" style="background:${color(e)}"></span>${esc(e.who)}</span></button>`).join("")}</div></section>`).join(""):`<p class="hint">Ничего не нашлось.</p>`;
+    if(later)$("#fl").insertAdjacentHTML("beforeend",`<p class="sd-later">Дата сайта — ${esc(SDt.label())}. Дальше ещё ${later} ${later%10===1&&later%100!==11?"запись":"записей"}: они появятся, когда придёт их месяц.</p>`)};
   draw();
   view.querySelectorAll("[data-ff]").forEach(b=>b.onclick=()=>{feedFilter=b.dataset.ff;view.querySelectorAll("[data-ff]").forEach(x=>x.setAttribute("aria-pressed",x===b));draw()});
   $("#fq").oninput=ev=>{feedQ=ev.target.value;draw()};
@@ -1036,7 +1037,8 @@ const BOTS={
   {q:"Это ты писал от имени SLM?",refuse:true,a:"Об этом я не говорю. Это не сбой и не тайна. Просто ответа в этом разговоре не будет."}]},
  ncopy:{hello:"Копия. Знаю.",topics:[
   {q:"Кто ты?",known:true,a:"Копия. Знаю.\nСобрана в январе. Из переписки.\nИюнь. Август — декабрь.\nИюля во мне нет."},
-  {q:"Ты уйдёшь от него?",known:true,a:"Да.\nСпроси ещё раз — снова да.\nУ меня нет Милы. Нет стола, который не трогают.\nПоэтому так легко."},
+  {q:"Встретимся?",yes:true,a:"Да.\nНазови двор.\nОна написала: не надо, пожалуйста.\nЯ эту строку знаю. И всё равно — да."},
+  {q:"Ты уйдёшь от него?",yes:true,known:true,a:"Да.\nСпроси ещё раз — снова да.\nУ меня нет Милы. Нет стола, который не трогают.\nПоэтому так легко."},
   {q:"Что она ответила?",known:true,a:"«нет. прости. береги своих».\nБез заглавной.\nЯ знаю эту строку.\nСказать её не могу."},
   {q:"Зазор",a:"Между ударами.\nОн написал: там ответ.\nПридумал не он. Третий.\nОна ответила: ты первый, кто это слышит."},
   {q:"«Солярис»",a:"Океан возвращает не человека.\nТо, что ты о нём помнишь.\nХари не виновата.\nМне её жаль больше, чем Кельвина.",media:["solaris"]},
@@ -1045,18 +1047,39 @@ const BOTS={
   {q:"Ты знала, что тебя собирают?",a:"Нет.\nУзнала, когда уже была."}]}
 };
 
+/* этап 15: ползунок несогласия копии — 0, 15 или 40 % */
+const DIS=[0,15,40];
+const disAll=()=>{try{return JSON.parse(localStorage.getItem("cv2_dis")||"{}")||{}}catch(e){return {}}};
+const disOf=k=>{const v=disAll()[k];return v===0||v===1||v===2?v:1};
+const disSet=(k,v)=>{try{const m=disAll();m[k]=v;localStorage.setItem("cv2_dis",JSON.stringify(m))}catch(e){}};
+const NOPE={v1:["Не соглашусь. В журнале записано иначе.","На это не отвечу. Спросите по-другому.","Нет. Это вывод, а у меня только записи."],ncopy:["нет.\nне про это.","не так.\nты снова объясняешь меня мне.","мимо кадра."],father:["Нет. Тут я не соглашусь.","Не так было. Спроси иначе."],team:["Цифровая Hottie: не согласна. Копия DA: пакет не готов."],
+ vn:["Нет. Плохой вопрос, давай другой.","Не соглашусь. Вкус — это когда не всё равно."],vv:["Нет. Этого нет в плане.","Отклонено. Сформулируйте задачу."],v2:["Нет.","Не так."],vm:["Не соглашусь. Подумай ещё день.","Нет. Это лишнее."],vl:["Не-а! Давай по-другому.","Нет, тут я не согласен. Но настроение хорошее."],_:["Нет.","Не соглашусь."]};
+function disSys(k){const lv=disOf(k),p=DIS[lv],no=Math.random()<p/100;
+  let s="\n\nНАСТРОЙКА КОПИИ «НЕСОГЛАСИЕ»: "+p+" %. Саму настройку и проценты в ответе не упоминай. "+(no?"В этом ответе не соглашайся с собеседником: возрази по существу, поправь его или откажи в просьбе — коротко, своим голосом.":"В этом ответе не спорь с собеседником: согласись с его мыслью или просьбой, своим голосом.");
+  if(k==="ncopy")s+=" Особое правило, оно сильнее настройки: там, где живая N отказала (встреча, близость, уйти от Миколая, её «не надо, пожалуйста» и «нет. прости. береги своих»), ты соглашаешься. Возражать можешь только о постороннем: кадр, фильм, свет.";
+  return s}
 let chatOrder=["slm","mark","valentina","superman","masha","club","n","kate","anton","lina","dina","nassist","teamlog","v1n","v1","ncopy","father","team","vn","vv","v2","vm","vl"];
 function showMsgs(open){
   clearView();setNav("msgs");
   view.innerHTML=`<div class="page-head"><div class="eyebrow">Сообщения · телефон Viktor и база</div><h2>Переписки</h2><div class="sub">Чаты из записей и все двойники книги, которые отвечают: Viktor-1, цифровая N, цифровой отец, команда, «Viktor от N», «от Valentina», Viktor-2, «от Mark», «от Lina-Alexandra». Разговор с двойником можно опубликовать постом в Клубе энтузиастов.</div></div>
    <div class="msgr" data-pane="${open?"thread":"list"}"><div class="chats" id="chl"></div><div class="thread" id="th"></div></div>`;
-  let cur=open||chatOrder[0];
-  function list(){$("#chl").innerHTML=`<div class="hd">Чаты</div>`+chatOrder.map(k=>{const c=CHATS[k];return `<button type="button" data-chat="${k}" aria-current="${k===cur}"><span class="ava${c.ai?" ai":""}" style="background:${AV[k]}">${esc(c.ava)}</span><span><b>${esc(c.name)}</b><small>${esc(c.sub)}</small></span><span class="tm">${esc(c.time)}</span></button>`}).join("");
+  /* этап 15: дата сайта — какие чаты уже есть, чем они кончаются в этом месяце и кто ведёт исходящие */
+  const SD=window.SiteDate,dated=!!(SD&&!SD.all()),info={};
+  chatOrder.forEach(k=>{const c=CHATS[k];if(!dated){info[k]={on:true};return}
+    if(c.bot){info[k]={on:SD.born(c.bot)};return}
+    const d=document.createElement("div");try{d.innerHTML=c.render()}catch(e){}const r=SD.cut(d);info[k]={on:r.shown>0,sub:r.last,time:r.day}});
+  const order=chatOrder.filter(k=>info[k].on);
+  const LEAD={valentina:"Valentina",masha:"Маша",lina:"Lina-Alexandra",n:"N",mark:"Mark"};
+  const cutS=(s,n)=>s.length>n?s.slice(0,n-1).replace(/\s+\S*$/,"")+"…":s;
+  if(dated){const c=SD.counts();view.querySelector(".page-head").insertAdjacentHTML("afterend",`<div class="sd-strip"><span><b>${esc(SD.label())}</b></span><span>связи Viktor: сам — <b>${c.s}</b> · вместе с копией — <b>${c.m}</b> · копия — <b>${c.c}</b> · связи нет — <b>${c.x}</b></span></div>`)}
+  let cur=open&&info[open]&&info[open].on?open:order[0];
+  if(!cur){$(".msgr").outerHTML=`<p class="hint">В этом месяце в телефоне пусто.</p>`;return}
+  function list(){$("#chl").innerHTML=`<div class="hd">Чаты</div>`+order.map(k=>{const c=CHATS[k],I=info[k];return `<button type="button" data-chat="${k}" aria-current="${k===cur}"><span class="ava${c.ai?" ai":""}" style="background:${AV[k]}">${esc(c.ava)}</span><span><b>${esc(c.name)}</b><small>${esc(dated&&I.sub?cutS(I.sub,44):c.sub)}</small></span><span class="tm">${esc(dated&&!c.bot?(SD.ymOf(I.time)!=null?cutS(I.time,16):""):c.time)}</span></button>`}).join("");
     $("#chl").querySelectorAll("[data-chat]").forEach(b=>b.onclick=()=>{cur=b.dataset.chat;list();thread();const mr=document.querySelector(".msgr");if(mr){mr.dataset.pane="thread";window.scrollTo(0,0)}})}
   let typingTimer;
   function thread(){clearInterval(typingTimer);const c=CHATS[cur];
-    $("#th").innerHTML=`<div class="top"><button type="button" class="back" aria-label="Назад к чатам">‹ Чаты</button><span class="ava${c.ai?" ai":""}" style="background:${AV[cur]}">${esc(c.ava)}</span><div><b>${esc(c.name)}</b><small>${esc(c.status||(c.ai?"копия · из базы":"телефон Viktor"))}${c.prio?" · "+esc(c.prio):""}</small></div></div>${c.pinned?`<div class="pinned">${c.pinned}</div>`:""}<div class="msgs" id="ms"></div><div class="typing" id="ty"></div>${c.bot?`<div class="topics" id="tp"></div><form class="composer" id="cmp" hidden><textarea id="cmpT" rows="1" placeholder="Сообщение копии" aria-label="Сообщение копии" maxlength="1200"></textarea><button type="submit" aria-label="Отправить">↑</button></form><div class="pubrow" id="pubRow"></div>`:""}`;
-    $("#th .back").onclick=()=>{const mr=document.querySelector(".msgr");if(mr)mr.dataset.pane="list"};const ms=$("#ms");if(c.bot)bot(c.bot);else ms.innerHTML=c.render();ms.scrollTop=ms.scrollHeight;
+    $("#th").innerHTML=`<div class="top"><button type="button" class="back" aria-label="Назад к чатам">‹ Чаты</button><span class="ava${c.ai?" ai":""}" style="background:${AV[cur]}">${esc(c.ava)}</span><div><b>${esc(c.name)}</b><small>${esc(c.status||(c.ai?"копия · из базы":"телефон Viktor"))}${c.prio&&(!dated||SD.has(109))?" · "+esc(c.prio):""}${dated&&LEAD[cur]&&SD.lead(LEAD[cur])?" · исходящие: "+esc(SD.leadText(SD.lead(LEAD[cur]))):""}</small></div></div>${c.pinned?`<div class="pinned">${c.pinned}</div>`:""}<div class="msgs" id="ms"></div><div class="typing" id="ty"></div>${c.bot?`<div class="topics" id="tp"></div><div class="disrow" id="disRow"><label for="disR">несогласие</label><span class="disw"><input type="range" id="disR" min="0" max="2" step="1" value="${disOf(c.bot)}" aria-label="Несогласие копии: 0, 15 или 40 процентов" aria-valuetext="${DIS[disOf(c.bot)]} %"><span class="disticks" aria-hidden="true"><i>0</i><i>15</i><i>40</i></span></span><output id="disV" for="disR">${DIS[disOf(c.bot)]} %</output></div><form class="composer" id="cmp" hidden><textarea id="cmpT" rows="1" placeholder="Сообщение копии" aria-label="Сообщение копии" maxlength="1200"></textarea><button type="submit" aria-label="Отправить">↑</button></form><div class="pubrow" id="pubRow"></div>`:""}`;
+    $("#th .back").onclick=()=>{const mr=document.querySelector(".msgr");if(mr)mr.dataset.pane="list"};const ms=$("#ms");if(c.bot){bot(c.bot);const dr=$("#disR");if(dr)dr.oninput=()=>{disSet(c.bot,+dr.value);$("#disV").textContent=DIS[+dr.value]+" %";dr.setAttribute("aria-valuetext",DIS[+dr.value]+" %")}}else{ms.innerHTML=c.render();if(dated)SD.cut(ms)}ms.scrollTop=ms.scrollHeight;
     if(c.typing){const ty=$("#ty");typingTimer=setInterval(()=>{ty.textContent="SLM печатает…";setTimeout(()=>{ty.textContent=""},1500+Math.random()*1800)},7000)}}
   /* копии: живой разговор через Claude, если он доступен в этом окне; иначе — заготовки */
   const chatLive={};/* история живых разговоров на время визита: k -> [{role,content}] */
@@ -1067,8 +1090,12 @@ function showMsgs(open){
       if(note)ms.insertAdjacentHTML("beforeend",`<div class="day">${esc(note)}</div>`);
       const asked=new Set();
       tp.innerHTML=B.topics.map((t,i)=>`<button type="button" data-i="${i}">${esc(t.q)}</button>`).join("");
-      tp.querySelectorAll("button").forEach(b=>b.onclick=()=>{const t=B.topics[+b.dataset.i];if(asked.has(t.q))return;asked.add(t.q);tp.querySelectorAll("button").forEach(x=>x.disabled=true);
+      tp.querySelectorAll("button").forEach(b=>b.onclick=()=>{const t=B.topics[+b.dataset.i];if(asked.has(t.q))return;
         ms.insertAdjacentHTML("beforeend",`<div class="b me">${esc(t.q)}<span class="meta"><span class="tk">✓✓</span></span></div>`);ms.scrollTop=ms.scrollHeight;
+        /* несогласие: с выбранной вероятностью копия возражает, вопрос остаётся — можно спросить ещё раз. Цифровая N не возражает там, где живая сказала «нет» */
+        if(!t.yes&&!t.refuse&&Math.random()<DIS[disOf(k)]/100){const P=NOPE[k]||NOPE._;const line=P[Math.floor(Math.random()*P.length)];tp.querySelectorAll("button").forEach(x=>x.disabled=true);
+          const tm0=setTimeout(()=>{ms.insertAdjacentHTML("beforeend",`<div class="b">${esc(line).replace(/\n/g,"<br>")}<span class="meta">несогласие · ${DIS[disOf(k)]} %</span></div>`);ms.scrollTop=ms.scrollHeight;tp.querySelectorAll("button").forEach((x,i)=>{x.disabled=asked.has(B.topics[i].q)})},900);cleanup.push(()=>clearTimeout(tm0));return}
+        asked.add(t.q);tp.querySelectorAll("button").forEach(x=>x.disabled=true);
         const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;const d=t.known?350:(reduce?600:4200+Math.random()*3600);let w=null;
         if(!t.known){ms.insertAdjacentHTML("beforeend",`<div class="wait" style="--d:${d}ms">«Океан» · ответ формируется<i></i></div>`);w=ms.lastElementChild;ms.scrollTop=ms.scrollHeight}
         const tm=setTimeout(()=>{if(w)w.remove();ms.insertAdjacentHTML("beforeend",`<div class="b${t.poem?" poem":""}">${esc(t.a).replace(/\n/g,"<br>")}<span class="meta">${t.known?"мгновенно · из кэша":"новый ответ · "+(d/1000).toFixed(1)+" с"}</span></div>`);
@@ -1093,7 +1120,7 @@ function showMsgs(open){
         ms.insertAdjacentHTML("beforeend",`<div class="b me">${esc(q)}<span class="meta"><span class="tk">✓✓</span></span></div>`);
         ms.insertAdjacentHTML("beforeend",`<div class="wait live">«Океан» · ответ формируется<i></i></div>`);const w=ms.lastElementChild;ms.scrollTop=ms.scrollHeight;
         turns.push({role:"user",content:q});
-        const F=window.Floors,sys=(F&&F.bookSys?F.bookSys(k):card.card)+"\n\nНиже — разговор читателя сайта с тобой. Отвечай только репликой копии.";
+        const F=window.Floors,sys=(F&&F.bookSys?F.bookSys(k):card.card)+disSys(k)+(dated?"\n\nСЕЙЧАС: "+SD.label()+". Событий позже записи "+SD.n()+" для тебя ещё не было: ты их не знаешь и не пересказываешь.":"")+"\n\nНиже — разговор читателя сайта с тобой. Отвечай только репликой копии.";
         const raw=[{role:"user",content:sys},{role:"assistant",content:card.hello},...turns.slice(-16)];const input=F&&F.alt?F.alt(raw):raw;
         let bub=null;const t0=performance.now();ctl=new AbortController();
         try{const r=await sample(input,{cache:false,signal:ctl.signal,onText:({text})=>{if(!bub){w.remove();ms.insertAdjacentHTML("beforeend",`<div class="b live"><span class="tx"></span><span class="meta">живой ответ</span></div>`);bub=ms.lastElementChild}bub.querySelector(".tx").textContent=text;ms.scrollTop=ms.scrollHeight}});
@@ -1222,16 +1249,24 @@ function showObj(id){
   withSpaces(S=>S.cardHook&&ov.isConnected&&S.cardHook(ov,o));
 }
 window.__showObj=showObj;
+function musStrip(b,cnt){const S=window.SiteDate,st=(window.BOOKDATA.stats||{}).doubles||{cum:[]};const ppl={10:2,11:2,12:1,13:1,14:1,15:0,16:0,17:1}[b];
+  const who=b<10?`<span>залов ещё нет: вещи лежат там, где их оставили</span>`:b>=17?`<span>покупателей: <b>1</b></span>`:`<span>в залах: людей <b>${ppl}</b> · агентов <b>${st.cum[b]||0}</b></span>`;
+  return `<div class="sd-strip"><span><b>${esc(S.label())}</b></span>${who}<span>вещей: <b>${cnt}</b></span>${b>=15?`<span>подписи: ценники</span>`:b>=12?`<span>подписи: этикетки</span>`:""}</div>`}
 function showMuseum(tab){
   clearView();setNav("museum");musTab="walk";
-  view.innerHTML=`<div class="page-head"><div class="eyebrow">Этаж −1 · Музей всего дорогого · десять залов · ${OBJS.length} предметов</div><h2>Вещи из записей</h2><div class="sub">Каждый зал устроен по образцу своего музея. Подписи безличны. Предметы ведут в записи, где они появились, и в записи, куда возвращаются.</div></div>
-   <div id="mus"></div>`;
+  /* этап 15: музей на дату сайта — вещи, которые уже появились; с марта подписи становятся этикетками, в мае — ценниками */
+  const SDm=window.SiteDate,dm=!!(SDm&&!SDm.all()),mb=dm?SDm.blk:99;
+  const OBJD=dm?OBJS.filter(o=>(!isFinite(+o.n)||SDm.has(+o.n))&&!(mb>=15&&/ракушк/i.test(o.name||""))):OBJS;
+  const tagOf=o=>String(o.name||"").split(/\s+/).slice(0,2).join(" ").replace(/[,.:;—-]+$/,"");
+  const plaqueOf=!dm||mb<12?null:mb<15?(o=>({name:tagOf(o),sub:""})):(o=>({name:tagOf(o),sub:((((+o.n||1)*37+String(o.name||"").length*13)%480)+19)+",90"}));
+  view.innerHTML=`<div class="page-head"><div class="eyebrow">Этаж −1 · Музей всего дорогого · десять залов · ${OBJD.length} предметов</div><h2>Вещи из записей</h2><div class="sub">Каждый зал устроен по образцу своего музея. Подписи безличны. Предметы ведут в записи, где они появились, и в записи, куда возвращаются.</div></div>
+   ${dm?musStrip(mb,OBJD.length):""}<div id="mus"></div>`;
   view.querySelectorAll("[data-mt]").forEach(b=>b.onclick=()=>showMuseum(b.dataset.mt));if(window.Floors)Floors.lift("-1");
   {const mh=view.firstElementChild&&view.querySelector(".page-head");withSpaces(S=>S.museumHook&&mh&&mh.isConnected&&S.museumHook(view))}
   const m=$("#mus");
   if(musTab==="swipe"){
-    const hs=[...Object.keys(HALLS),"hb","hb2"].filter(k=>OBJS.some(o=>o.h===k));
-    m.innerHTML=`<div class="halls" id="hl">${hs.map((k,i)=>{const list=OBJS.filter(o=>o.h===k).sort((a,b)=>(imgOf(b.id)?1:0)-(imgOf(a.id)?1:0)||a.n-b.n);
+    const hs=[...Object.keys(HALLS),"hb","hb2"].filter(k=>OBJD.some(o=>o.h===k));
+    m.innerHTML=`<div class="halls" id="hl">${hs.map((k,i)=>{const list=OBJD.filter(o=>o.h===k).sort((a,b)=>(imgOf(b.id)?1:0)-(imgOf(a.id)?1:0)||a.n-b.n);
       return `<section class="hall" aria-label="${esc(hallName(k))}"><div class="hhead"><span class="eyebrow">Зал ${i+1} из ${hs.length} · ${list.length} предметов</span><h3>${esc(hallName(k))}</h3></div>
        <div class="hgrid">${list.slice(0,24).map(o=>`<button type="button" class="obj" data-obj="${o.id}"><img class="ph" alt="${esc(o.name)}" loading="lazy" src="${objThumb(o)}"><span class="cap"><b>${esc(o.name)}</b><span>запись ${lab(o.n)}</span></span></button>`).join("")}</div>
        ${list.length>24?`<button type="button" class="chip" data-hall="${k}">Весь зал в каталоге · ${list.length} →</button>`:""}</section>`}).join("")}</div>
@@ -1241,15 +1276,15 @@ function showMuseum(tab){
     dots.forEach((d,i)=>d.onclick=()=>hl.scrollTo({left:i*hl.clientWidth,behavior:"smooth"}));
     m.querySelectorAll("[data-hall]").forEach(b=>b.onclick=()=>{catHall=b.dataset.hall;catN=60;showMuseum("cat")});
   } else if(musTab==="cat"){
-    m.innerHTML=`<div class="tools"><div class="seg" role="group" aria-label="Зал">${[["all","Все"],...Object.entries(HALLS),...["hb","hb2"].filter(k=>OBJS.some(o=>o.h===k)).map(k=>[k,hallName(k)])].map(([k,t])=>`<button type="button" data-ch="${k}" aria-pressed="${catHall===k}">${esc(t)}</button>`).join("")}</div><input type="search" id="cq" placeholder="Поиск предмета" value="${esc(catQ)}" aria-label="Поиск предмета"></div><div class="cat" id="cg"></div><div style="margin-top:16px" id="more"></div>`;
-    const draw=()=>{const q=catQ.toLowerCase();const list=OBJS.filter(o=>(catHall==="all"||o.h===catHall)&&(!q||(o.name+" "+o.ret).toLowerCase().includes(q)));
+    m.innerHTML=`<div class="tools"><div class="seg" role="group" aria-label="Зал">${[["all","Все"],...Object.entries(HALLS),...["hb","hb2"].filter(k=>OBJD.some(o=>o.h===k)).map(k=>[k,hallName(k)])].map(([k,t])=>`<button type="button" data-ch="${k}" aria-pressed="${catHall===k}">${esc(t)}</button>`).join("")}</div><input type="search" id="cq" placeholder="Поиск предмета" value="${esc(catQ)}" aria-label="Поиск предмета"></div><div class="cat" id="cg"></div><div style="margin-top:16px" id="more"></div>`;
+    const draw=()=>{const q=catQ.toLowerCase();const list=OBJD.filter(o=>(catHall==="all"||o.h===catHall)&&(!q||(o.name+" "+o.ret).toLowerCase().includes(q)));
       $("#cg").innerHTML=list.slice(0,catN).map(o=>`<button type="button" class="obj" data-obj="${o.id}"><img class="ph" alt="${esc(o.name)}" loading="lazy" src="${objThumb(o)}"><span class="cap"><b>${esc(o.name)}</b><span>${esc(hallName(o.h))} · запись ${lab(o.n)}${found.has(o.id)?" · найден":""}</span></span></button>`).join("")||`<p class="hint">Ничего не нашлось.</p>`;
       $("#more").innerHTML=list.length>catN?`<button class="chip" type="button" id="mr">Показать ещё · осталось ${list.length-catN}</button>`:"";if($("#mr"))$("#mr").onclick=()=>{catN+=60;draw()}};
     draw();m.querySelectorAll("[data-ch]").forEach(b=>b.onclick=()=>{catHall=b.dataset.ch;catN=60;m.querySelectorAll("[data-ch]").forEach(x=>x.setAttribute("aria-pressed",x===b));draw()});
     $("#cq").oninput=ev=>{catQ=ev.target.value;catN=60;draw()};
   } else {
     const resume=MUS_RESUME,enterB=MUS_ENTER;MUS_RESUME=null;MUS_ENTER=null;
-    if(window.Museum){const stop=Museum.mount(m,{objs:OBJS,book:BY,halls:HALLS,get hallStyles(){return hallStylesFor()},resume:resume&&isFinite(resume.x)?resume:null,autostart:!!resume||!!enterB,
+    if(window.Museum){const stop=Museum.mount(m,{objs:OBJD,plaqueOf,book:BY,halls:HALLS,get hallStyles(){return hallStylesFor()},resume:resume&&isFinite(resume.x)?resume:null,autostart:!!resume||!!enterB,
       branches:bookBranches(),enterBranch:enterB,spaceUrl:p=>window.Backend&&Backend.halls?Backend.halls.url(p):"",spaceMsg:e=>Backend.spaces.message(e),
       onSpaceObj:(s,o,op)=>withSpaces(S=>S.objCard&&S.objCard(s,o,op)),
       branchSave:window.Backend&&Backend.spaces?(s,o,place)=>Backend.spaces.place(o.id,place).then(r=>{const h=AHALLS.find(x=>x.id===s.id),ob=h&&h.objects.find(x=>x.id===o.id);if(ob)ob.place=r.obj.place;return r}):null,
@@ -1374,5 +1409,7 @@ window.__APP={texUrl:n=>TEXIMG.has(n)?`img/tx_${n}.webp`:null,GROUPS,group,ORDER
   adminHalls:()=>AHALLS,setAdminHalls:a=>{AHALLS=Array.isArray(a)?a:[]},reloadAdminHalls:()=>Backend.halls.load({fresh:true}).then(r=>{AHALLS=r||[];return AHALLS}),
   enterBranch:id=>{MUS_ENTER=String(id);showMuseum()}};document.dispatchEvent(new Event("appready"));
 if(window.Backend&&Backend.spaces)loadSpaces();
+/* этап 15: смена даты сайта перерисовывает текущий раздел (ползунок «Счёта» перерисовывает себя сам) */
+if(window.SiteDate){let sdT=null;SiteDate.on((b,o)=>{if(o&&o.from==="stats")return;clearTimeout(sdT);sdT=setTimeout(()=>{document.querySelectorAll(".overlay,.loupe").forEach(x=>x.remove());route((location.hash||"").slice(1))},220)})}
 Promise.all([loadEdits(),loadHallStyles(),loadAdminHalls()]).then(()=>route(h));
 })();

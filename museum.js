@@ -560,7 +560,7 @@ function mount(host,opt){
   const T=window.THREE;
   /* этап 8, часть 2: opt.world — этаж посетителей вместо музея книги (тот же движок); без него — музей книги, как раньше */
   const WORLD=opt&&opt.world&&typeof opt.world==="object"?opt.world:null,BOOK=!WORLD;if(WORLD)opt=Object.assign({objs:[],book:{},halls:{}},opt);if(BOOK)LAST_BR=Array.isArray(opt.branches)?opt.branches.slice():[];
-  host.innerHTML=`<div class="hallwrap"><canvas tabindex="0" aria-label="Музей: трёхмерные залы"></canvas><div class="hud"><div class="where"><small></small><span></span><div class="mz-found"></div></div><div class="mz-title" role="status" aria-live="polite"></div><div class="keys" id="mz-keys"><div class="mz-kh"><span>подсказки</span><button type="button" class="mz-kx" aria-label="Закрыть подсказки" title="Закрыть подсказки">✕</button></div><span class="mz-k0">клик — управлять мышью</span><br>WASD, ↑/↓ — идти · ←/→ — повернуть камеру<br>Shift — бег<br>пробел — прыжок · E — рассмотреть<br>на столы, лавки и тумбы можно запрыгнуть<br>V или колесо — вид от 1-го / 3-го лица<br>G — помахать · C — сесть / встать<br>M — микрофон: вкл / выкл</div><div class="cross"></div><div class="near" hidden></div><div class="stick"><i></i></div><div class="mz-gmenu" data-open="0" role="group" aria-label="Жесты"><button type="button" data-g="wave">помахать</button><button type="button" data-g="sit">сесть</button></div><div class="mz-pad"><button type="button" class="mz-gst" aria-expanded="false" aria-label="Жесты: помахать или сесть"><b><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path d="M4.5 9V4.2a1 1 0 0 1 2 0V8M6.5 7.6V2.6a1 1 0 0 1 2 0v5M8.5 7.6V3.4a1 1 0 0 1 2 0V9M10.5 8.4V5.6a1 1 0 0 1 2 0v3.6c0 3-2 5.3-4.6 5.3-1.9 0-3-1-3.9-2.4L2.4 9.6a1 1 0 0 1 1.6-1.2L4.5 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></b>жест</button><button type="button" class="mz-act" aria-label="Рассмотреть ближайший предмет"><b>◉</b>смотреть</button><button type="button" class="mz-jump" aria-label="Прыжок"><b>↑</b>прыжок</button></div><div class="mz-ctl"><div class="mz-view" role="group" aria-label="Вид камеры"><button type="button" data-v="tp" aria-pressed="true" aria-label="Вид из-за спины"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="10" cy="4" r="2.3" fill="currentColor"/><path d="M6.6 15v-4.3a3.4 3.4 0 0 1 6.8 0V15z" fill="currentColor"/><path d="M1.2 7.5l3 2.2-3 2.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span class="mz-lf">из-за спины</span><span class="mz-ls">сзади</span></button><button type="button" data-v="fp" aria-pressed="false" aria-label="Вид от первого лица"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8s2.6-4.6 7-4.6S15 8 15 8s-2.6 4.6-7 4.6S1 8 1 8z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.3" fill="currentColor"/></svg><span class="mz-lf">от первого лица</span><span class="mz-ls">глазами</span></button></div><button type="button" class="mz-who" aria-label="Персонаж: изменить облик"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="1.5" width="6" height="5.5" rx="1" fill="currentColor"/><path d="M3.5 15v-4.6A2.4 2.4 0 0 1 5.9 8h4.2a2.4 2.4 0 0 1 2.4 2.4V15z" fill="currentColor"/></svg><span>персонаж</span></button><button type="button" class="mz-snd" aria-pressed="true" aria-label="Звук"><svg viewBox="0 0 16 16" aria-hidden="true"></svg><span>звук</span></button><button type="button" class="mz-mus" aria-pressed="true" aria-label="Музыка" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 12.2V3.4l7-1.6v8.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="4.3" cy="12.3" r="1.9" fill="currentColor"/><circle cx="11.3" cy="10.6" r="1.9" fill="currentColor"/></svg><span>музыка</span></button><button type="button" class="mz-auth-b" aria-label="Музыка залов: панель автора" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h8M2 12h5M12 9.5v5M9.5 12h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>музыка залов</span></button><button type="button" class="mz-help" aria-expanded="false" aria-controls="mz-keys" aria-label="Подсказки по управлению">?</button></div><button type="button" class="mz-fsb mz-fstop" aria-pressed="false" aria-label="На весь экран" title="На весь экран (F)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span class="mz-lf">на весь экран</span><span class="mz-ls">экран</span></button><div class="mz-map" data-mz-open="1"><button type="button" class="mz-map-t" aria-expanded="true" aria-label="Карта залов: показать или скрыть">Карта<i aria-hidden="true">▾</i></button><canvas aria-label="Карта залов. Нажмите на зал, чтобы перейти в него" role="img"></canvas></div><div class="mz-np" hidden role="group" aria-label="Сейчас играет"><button type="button" class="mz-npt" aria-expanded="true" aria-label="Сейчас играет: показать или скрыть">♪</button><span class="mz-npn"></span><button type="button" class="mz-npb mz-npp" aria-label="Предыдущий трек">‹</button><button type="button" class="mz-npb mz-npx" aria-label="Следующий трек">›</button></div><div class="hallbar"></div></div>
+  host.innerHTML=`<div class="hallwrap"><canvas tabindex="0" aria-label="Музей: трёхмерные залы"></canvas><div class="hud"><div class="where"><small></small><span></span><div class="mz-found"></div></div><div class="mz-title" role="status" aria-live="polite"></div><div class="keys" id="mz-keys"><div class="mz-kh"><span>подсказки</span><button type="button" class="mz-kx" aria-label="Закрыть подсказки" title="Закрыть подсказки">✕</button></div><span class="mz-k0">клик — управлять мышью</span><br>WASD, ↑/↓ — идти · ←/→ — повернуть камеру<br>Shift — бег<br>пробел — прыжок · E — взять вещь в руки<br>на столы, лавки и тумбы можно запрыгнуть<br>V или колесо — вид от 1-го / 3-го лица<br>G — помахать · C — сесть: у лавки, стола, тумбы — на них<br>M — микрофон: вкл / выкл</div><div class="cross"></div><div class="near" hidden></div><div class="stick"><i></i></div><div class="mz-gmenu" data-open="0" role="group" aria-label="Жесты"><button type="button" data-g="wave">помахать</button><button type="button" data-g="sit">сесть</button></div><div class="mz-pad"><button type="button" class="mz-gst" aria-expanded="false" aria-label="Жесты: помахать или сесть"><b><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path d="M4.5 9V4.2a1 1 0 0 1 2 0V8M6.5 7.6V2.6a1 1 0 0 1 2 0v5M8.5 7.6V3.4a1 1 0 0 1 2 0V9M10.5 8.4V5.6a1 1 0 0 1 2 0v3.6c0 3-2 5.3-4.6 5.3-1.9 0-3-1-3.9-2.4L2.4 9.6a1 1 0 0 1 1.6-1.2L4.5 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></b>жест</button><button type="button" class="mz-act" aria-label="Рассмотреть ближайший предмет"><b>◉</b>смотреть</button><button type="button" class="mz-jump" aria-label="Прыжок"><b>↑</b>прыжок</button></div><div class="mz-ctl"><div class="mz-view" role="group" aria-label="Вид камеры"><button type="button" data-v="tp" aria-pressed="true" aria-label="Вид из-за спины"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="10" cy="4" r="2.3" fill="currentColor"/><path d="M6.6 15v-4.3a3.4 3.4 0 0 1 6.8 0V15z" fill="currentColor"/><path d="M1.2 7.5l3 2.2-3 2.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span class="mz-lf">из-за спины</span><span class="mz-ls">сзади</span></button><button type="button" data-v="fp" aria-pressed="false" aria-label="Вид от первого лица"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8s2.6-4.6 7-4.6S15 8 15 8s-2.6 4.6-7 4.6S1 8 1 8z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.3" fill="currentColor"/></svg><span class="mz-lf">от первого лица</span><span class="mz-ls">глазами</span></button></div><button type="button" class="mz-who" aria-label="Персонаж: изменить облик"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="1.5" width="6" height="5.5" rx="1" fill="currentColor"/><path d="M3.5 15v-4.6A2.4 2.4 0 0 1 5.9 8h4.2a2.4 2.4 0 0 1 2.4 2.4V15z" fill="currentColor"/></svg><span>персонаж</span></button><button type="button" class="mz-snd" aria-pressed="true" aria-label="Звук"><svg viewBox="0 0 16 16" aria-hidden="true"></svg><span>звук</span></button><button type="button" class="mz-mus" aria-pressed="true" aria-label="Музыка" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 12.2V3.4l7-1.6v8.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="4.3" cy="12.3" r="1.9" fill="currentColor"/><circle cx="11.3" cy="10.6" r="1.9" fill="currentColor"/></svg><span>музыка</span></button><button type="button" class="mz-auth-b" aria-label="Музыка залов: панель автора" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h8M2 12h5M12 9.5v5M9.5 12h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>музыка залов</span></button><button type="button" class="mz-help" aria-expanded="false" aria-controls="mz-keys" aria-label="Подсказки по управлению">?</button></div><button type="button" class="mz-fsb mz-fstop" aria-pressed="false" aria-label="На весь экран" title="На весь экран (F)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span class="mz-lf">на весь экран</span><span class="mz-ls">экран</span></button><div class="mz-map" data-mz-open="1"><button type="button" class="mz-map-t" aria-expanded="true" aria-label="Карта залов: показать или скрыть">Карта<i aria-hidden="true">▾</i></button><canvas aria-label="Карта залов. Нажмите на зал, чтобы перейти в него" role="img"></canvas></div><div class="mz-np" hidden role="group" aria-label="Сейчас играет"><button type="button" class="mz-npt" aria-expanded="true" aria-label="Сейчас играет: показать или скрыть">♪</button><span class="mz-npn"></span><button type="button" class="mz-npb mz-npp" aria-label="Предыдущий трек">‹</button><button type="button" class="mz-npb mz-npx" aria-label="Следующий трек">›</button></div><div class="hallbar"></div></div>
     <div class="gate"><div><h3>Музей всего дорогого</h3><p>Десять залов анфиладой: от квартир, в которых неуютно, до галереи, которая становится супермаркетом. Предметы ведут в записи.</p><button class="start" type="button">Войти</button></div></div></div>`;
   const wrap=host.querySelector(".hallwrap"),canvas=wrap.querySelector("canvas"),gate=wrap.querySelector(".gate"),hud=wrap.querySelector(".hud");
   if(WORLD){const f=WFLOOR[WORLD.floor]||WFLOOR["17"];gate.querySelector("h3").textContent="Этаж "+(WORLD.floor==="-1"?"−1":WORLD.floor)+" · "+f.name;gate.querySelector("p").textContent="Коридор с дверями в пространства посетителей. Лифт в лобби везёт на другие этажи и в музей книги.";canvas.setAttribute("aria-label","Этаж посетителей: трёхмерный коридор и комнаты")}
@@ -1281,7 +1281,7 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
     let liftEl=null;
     function liftClose(){if(!liftEl)return;liftEl.remove();liftEl=null;try{canvas.focus({preventScroll:true})}catch(e){}}
     function liftOpen(){const go=WORLD?WORLD.onLift:(opt.lift&&opt.lift.go);if(!go||liftEl)return;if(locked())document.exitPointerLock();pause();
-      const here=WORLD?WF.floor:"book",L=[["551","Этаж 551 · Верстак"],["43","Этаж 43 · Голоса"],["17","Этаж 17 · Квартиры"],["-1","Этаж −1 · Неотвеченное"],["book","Музей книги · десять залов"]];
+      const here=WORLD?WF.floor:"book",L=[["551","Этаж 551 · Верстак"],["43","Этаж 43 · Голоса"],["17","Этаж 17 · Квартиры"],["-1","Этаж −1 · Неотвеченное"],["book","Музей книги · десять залов"],["inf","Этаж ∞ · Библиотека"]];
       const el=document.createElement("div");el.className="mz-lift";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-label","Лифт: куда поехать");
       el.innerHTML=`<div class="mz-liftb"><b>Лифт</b><span>Этажи посетителей и музей книги</span>${L.map(([k,t])=>`<button type="button" data-lift="${k}"${k===here?' aria-current="true"':""}>${t}${k===here?" · вы здесь":""}</button>`).join("")}<button type="button" class="mz-liftx" data-lift="">Остаться</button></div>`;
       el.addEventListener("click",ev=>{const b=ev.target.closest("[data-lift]");if(!b){if(ev.target===el)liftClose();return}const k=b.dataset.lift;if(!k||k===here){liftClose();return}
@@ -1438,6 +1438,8 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
     /* предметы */
     const byHall={};opt.objs.forEach(o=>(byHall[o.h]=byHall[o.h]||[]).push(o));
     const hasPh=o=>opt.photo&&opt.photo(o.id)?1:0;Object.values(byHall).forEach(a=>a.sort((p,q)=>hasPh(q)-hasPh(p)||(q.to?q.to.length:0)-(p.to?p.to.length:0)||p.n-q.n));
+    /* этап 16: три расстояния до вещи — издалека силуэт, с двух шагов подпись, по E вещь берут в руки */
+    const LODS=[];
     function thing(o){
       const g=new T.Group();const nm=o.name.toLowerCase();let h=0;for(const ch of o.name)h=(h*31+ch.charCodeAt(0))>>>0;
       const col=new T.Color().setHSL((h%360)/360,.22,.42);const m=mat(col),light=mat(0xF2EEE4),dark=mat(0x1a1c20);
@@ -1463,10 +1465,10 @@ const textPlane=(c,w,h,x,y,z,ry=0,basic=true)=>{const t=new T.CanvasTexture(c);c
       const pm=kind==="glass"?mat(0x3A2E25):kind==="dark"?mat(0x1B1C1F):mat(0xF0EFEC);
       const ped=new T.Mesh(new T.BoxGeometry(.6,1,.6),pm);ped.position.y=.5;grp.add(ped);
       const th=thing(o);th.position.y=1;grp.add(th);
-      const pu=opt.photo&&opt.photo(o.id);if(pu){const tx=new T.TextureLoader().load(pu);if(T.sRGBEncoding)tx.encoding=T.sRGBEncoding;const fr=new T.Mesh(new T.BoxGeometry(.54,.41,.02),mat(0x1a1a1a));fr.position.set(0,1.34,-.2);fr.rotation.x=-.12;grp.add(fr);const pp=new T.Mesh(new T.PlaneGeometry(.5,.375),new T.MeshBasicMaterial({map:tx}));pp.position.set(0,0,.011);fr.add(pp);window.__photoPlanes=(window.__photoPlanes||[]).concat(o.id)}
+      let lodPP=null;const pu=opt.photo&&opt.photo(o.id);if(pu){const tx=new T.TextureLoader().load(pu);if(T.sRGBEncoding)tx.encoding=T.sRGBEncoding;const fr=new T.Mesh(new T.BoxGeometry(.54,.41,.02),mat(0x1a1a1a));fr.position.set(0,1.34,-.2);fr.rotation.x=-.12;grp.add(fr);const pp=new T.Mesh(new T.PlaneGeometry(.5,.375),new T.MeshBasicMaterial({map:tx}));pp.position.set(0,0,.011);fr.add(pp);lodPP=pp;window.__photoPlanes=(window.__photoPlanes||[]).concat(o.id)}
       if(kind==="glass"){const gl=new T.Mesh(new T.BoxGeometry(.56,.42,.56),new T.MeshLambertMaterial({color:0xE8F2F6,transparent:true,opacity:.14}));gl.position.y=1.21;grp.add(gl)}
-      const pq={name:o.name.length>46?o.name.slice(0,44)+"…":o.name,sub:"запись "+o.n};pq.c=plaqueCanvas(pq.name,pq.sub,foundS.has(o.id));pq.t=new T.CanvasTexture(pq.c);plaques[o.id]=pq;
-      const pl=new T.Mesh(new T.PlaneGeometry(.36,.14),new T.MeshBasicMaterial({map:pq.t}));pl.position.set(0,.84,.301);pl.rotation.x=-.25;grp.add(pl);
+      const pq=(opt.plaqueOf&&opt.plaqueOf(o))||{name:o.name.length>46?o.name.slice(0,44)+"…":o.name,sub:"запись "+o.n};pq.c=plaqueCanvas(pq.name,pq.sub,foundS.has(o.id));pq.t=new T.CanvasTexture(pq.c);plaques[o.id]=pq;
+      const pl=new T.Mesh(new T.PlaneGeometry(.36,.14),new T.MeshBasicMaterial({map:pq.t}));pl.position.set(0,.84,.301);pl.rotation.x=-.25;grp.add(pl);pl.material.transparent=true;LODS.push({grp,th,pl,pp:lodPP,k:-1,a:-1,ms:null});
       grp.traverse(m=>{m.userData.id=o.id});S.add(grp);clickable.push(grp);block(x-.42,x+.42,zz-.42,zz+.42);grp.userData.blk=blockers[blockers.length-1];contact(x,zz,1.1,1.1);grp.userData.ct=contacts[contacts.length-1];
       grp.userData.label=o.name;grp.userData.n=o.n;if(!BOOKPED[o.id])BOOKPED[o.id]=grp;if(!grp.userData.auto)grp.userData.auto={x,z:zz,r:0};return grp;
     }
@@ -1701,6 +1703,8 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
     const coarse=matchMedia("(pointer:coarse)"),reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
     /* P уходит в multi.tick: x, z, yaw (yaw — куда смотрит фигура); y — высота прыжка, только локально */
     const P={x:opt.multi?+(Math.random()*2.4-1.2).toFixed(2):0,z:opt.multi?-1.6-Math.random()*1.2:-2.2,yaw:0,y:0};
+    /* этап 18: в музей книги все — и посетители, и автор сайта — входят в «Святилище» */
+    if(BOOK){const s0=HALLZ.find(h=>h.k==="sv");if(s0)P.z+=s0.z0}
     const TP_DIST=coarse.matches?3.8:3.2,MAX_DIST=5.5,PITCH_TP=[-.8,.5],PITCH_FP=[-1.1,1.1];
     const C={yaw:0,pitch:-.26,want:TP_DIST,last:TP_DIST,cur:TP_DIST,d:TP_DIST};
     const V={x:0,z:0,vy:0,ground:true,gy:0};const WALK=2.6,RUN=5.2;
@@ -1745,7 +1749,7 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
     const clampPitch=p=>{const L=fpMode()?PITCH_FP:PITCH_TP;return Math.max(L[0],Math.min(L[1],p))};
     const locked=()=>document.pointerLockElement===canvas;
     const engaged=()=>locked()||document.activeElement===canvas;
-    const look=(dx,dy,k)=>{C.yaw-=dx*k;C.pitch=clampPitch(C.pitch-dy*k*.86);lastLook=performance.now()};
+    const look=(dx,dy,k)=>{if(INS.on){insTurn(dx*k/.0042,dy*k/.0042);return}C.yaw-=dx*k;C.pitch=clampPitch(C.pitch-dy*k*.86);lastLook=performance.now()};
     function setView(w){w=Math.max(0,Math.min(MAX_DIST,w));if(w>0)C.last=w;C.want=w;C.pitch=clampPitch(C.pitch);if(w===0){C.cur=C.d=0;P.yaw=C.yaw}wrap.classList.toggle("mz-tp",w>0);syncView()}
     /* видимый переключатель вида: «из-за спины» / «от первого лица»; следует и за V, и за колесом */
     const vBtns=[...hud.querySelectorAll(".mz-view button")];
@@ -1756,13 +1760,24 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
     const pause=()=>{Object.keys(keys).forEach(k=>keys[k]=false);jumpQ=false;if(joy){joy=null;knob.style.transform=""}drag=null};
     const MOVE=new Set(["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight","ShiftLeft","ShiftRight"]);
     const typing=t=>!!(t&&t.closest&&t.closest("input,textarea,select,[contenteditable],.overlay,.loupe,[role=dialog]"));
-    /* жесты (этап 3): G — помахать, C — сесть / встать; любое движение или прыжок поднимает; помахать — стоя */
+    /* жесты (этап 3): G — помахать, C — сесть: у лавки, стола, тумбы — на них; любое движение или прыжок поднимает; помахать — стоя */
     const GS={sit:false,waveT:0};
     const doWave=()=>{GS.sit=false;GS.waveT=reduce?1.6:2.4;syncG()};
-    const toggleSit=v=>{GS.sit=v===undefined?!GS.sit:!!v;if(GS.sit)GS.waveT=0;syncG()};
+    /* этап 17: «сесть» рядом с низкой вещью сажает на неё (лавка, стол, тумба, ящик — всё, чей верх от 0,25 до 1,05 м); встать — вернуться туда, откуда сел */
+    let SEAT=null;
+    function seatNear(){let best=null,bd=1.15;for(let i=0;i<blockers.length;i++){const b=blockers[i],t=b[6];if(b[5]||!(t>=.25&&t<=1.05))continue;const x0=Math.min(b[0],b[1]),x1=Math.max(b[0],b[1]),z0=Math.min(b[2],b[3]),z1=Math.max(b[2],b[3]);
+        if(x1-x0<.28||z1-z0<.28)continue;const nx=Math.max(x0,Math.min(x1,P.x)),nz=Math.max(z0,Math.min(z1,P.z)),d=Math.hypot(nx-P.x,nz-P.z);if(d<bd&&Math.abs((P.y||0)-t)<1.2){bd=d;best={x0,x1,z0,z1,t,nx,nz}}}
+      if(!best)return null;const cx=(best.x0+best.x1)/2,cz=(best.z0+best.z1)/2;let dx=P.x-best.nx,dz=P.z-best.nz;if(Math.hypot(dx,dz)<.05){dx=P.x-cx;dz=P.z-cz}const dl=Math.hypot(dx,dz)||1;dx/=dl;dz/=dl;
+      const inx=Math.min(.2,(best.x1-best.x0)/2),inz=Math.min(.2,(best.z1-best.z0)/2);
+      return {x:Math.max(best.x0+inx,Math.min(best.x1-inx,best.nx-dx*.2)),z:Math.max(best.z0+inz,Math.min(best.z1-inz,best.nz-dz*.2)),y:best.t,yaw:Math.atan2(-dx,-dz),fx:P.x,fz:P.z,fy:P.y||0}}
+    const toggleSit=v=>{GS.sit=v===undefined?!GS.sit:!!v;if(GS.sit){GS.waveT=0;SEAT=seatNear();if(SEAT){P.yaw=SEAT.yaw;target=null}}syncG()};
     const gestNow=()=>GS.waveT>0?"wave":GS.sit?"sit":"";
     const gOk=v=>v==="wave"||v==="sit"?v:"";
     const kd=ev=>{if(cust.isOpen||typing(ev.target)||ev.ctrlKey||ev.metaKey||ev.altKey)return;const c=ev.code;snd.gesture();
+      if(INS.on){if(c==="KeyE"||c==="Enter"){ev.preventDefault();if(!ev.repeat)insCard();return}if(c==="Escape"){ev.preventDefault();insClose();return}
+        if(c==="ArrowLeft"||c==="KeyA"){ev.preventDefault();INS.yaw-=.24;return}if(c==="ArrowRight"||c==="KeyD"){ev.preventDefault();INS.yaw+=.24;return}
+        if(c==="ArrowUp"){ev.preventDefault();INS.pitch=Math.max(-.75,INS.pitch-.16);return}if(c==="ArrowDown"){ev.preventDefault();INS.pitch=Math.min(.75,INS.pitch+.16);return}
+        if(MOVE.has(c)||c==="Space")insClose()}
       if(MOVE.has(c)){keys[c]=true;if(engaged())ev.preventDefault();return}
       if(c==="Space"){if(!engaged())return;ev.preventDefault();if(!ev.repeat)jumpQ=true;return}
       if(c==="KeyE"){if(nearObj&&!ev.repeat)activate(nearObj);return}
@@ -1791,7 +1806,7 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
       if(ev.pointerType==="touch"&&ev.target!==canvas)return;drag={x:ev.clientX,y:ev.clientY,id:ev.pointerId,type:ev.pointerType};moved=0;try{canvas.setPointerCapture(ev.pointerId)}catch(e){}});
     on(canvas,"pointermove",ev=>{if(!drag||drag.id!==ev.pointerId||locked())return;const dx=ev.clientX-drag.x,dy=ev.clientY-drag.y;moved+=Math.abs(dx)+Math.abs(dy);drag.x=ev.clientX;drag.y=ev.clientY;
       look(dx,dy,.0042)});
-    on(canvas,"pointerup",ev=>{if(!drag||drag.id!==ev.pointerId)return;const was=moved,type=drag.type;drag=null;if(was>6)return;
+    on(canvas,"pointerup",ev=>{if(!drag||drag.id!==ev.pointerId)return;const was=moved,type=drag.type;drag=null;if(was>6)return;if(INS.on){insClose();return}
       const rc=canvas.getBoundingClientRect(),nx=((ev.clientX-rc.left)/rc.width)*2-1,ny=-((ev.clientY-rc.top)/rc.height)*2+1;
       const o=pickAt(nx,ny);if(o){activate(o);return}
       if(type==="mouse"&&!coarse.matches&&requestLock())return;
@@ -1818,7 +1833,58 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
     let actMode="look";
     function setAct(mode,name){if(!bAct)return;if(mode!==actMode){actMode=mode;bAct.innerHTML=mode==="talk"?ACT_TALK:ACT_LOOK}bAct.setAttribute("aria-label",mode==="talk"?"Поговорить: "+name:"Рассмотреть ближайший предмет")}
     stopFns.push(()=>{if(locked())document.exitPointerLock();if(pad)pad.remove()});
-    function activate(o){if(locked())document.exitPointerLock();pause();if(o.userData.lift){liftOpen();return}if(o.userData.sobj){wOpenObj(o);return}if(o.userData.photo){openPhoto(o.userData.photo);return}if(o.userData.go){snd.cue("chat");const nav=(window.__APP&&window.__APP.go)||window.__goMsgs;if(nav)nav(o.userData.go);return}if(o.userData.id){if(markFound(o.userData.id))snd.cue("found");if(opt.onObj)opt.onObj(o.userData.id)}}
+
+    /* ---------- этап 16: силуэт → подпись → вещь в руках ---------- */
+    const LOD_DARK=new T.Color(0x15171B),lodC=new T.Color();
+    function stepLOD(){const px=P.x,pz=P.z;for(let i=0;i<LODS.length;i++){const L=LODS[i],g=L.grp;if(!g.parent)continue;const d=Math.hypot(g.position.x-px,g.position.z-pz);
+        const k=d<=5.2?0:d>=6.4?1:(d-5.2)/1.2,a=d<=2.3?1:d>=3?0:(3-d)/.7;
+        if(k!==L.k&&(Math.abs(k-L.k)>.03||k===0||k===1)){L.k=k;
+          if(!L.ms){const seen=new Set();L.ms=[];L.th.traverse(x=>{const mm=x.material;if(mm&&mm.color&&!seen.has(mm)){seen.add(mm);L.ms.push([mm,mm.color.clone()])}})}
+          L.ms.forEach(([mm,c0])=>{mm.color.copy(c0).lerp(LOD_DARK,k)});if(L.pp){const v=1-k*.94;L.pp.material.color.setRGB(v,v,v)}}
+        if(a!==L.a&&(Math.abs(a-L.a)>.03||a===0||a===1)){L.a=a;L.pl.material.opacity=a;L.pl.visible=a>.01}}}
+    const INS={on:false,id:null,S:null,cam:null,hold:null,yaw:0,pitch:0,t0:0};
+    const OBJM={};opt.objs.forEach(o=>{OBJM[o.id]=o});
+    /* оборот: то, чего нет в подписи. Своё поле o.back важнее; иначе — инвентарный номер, след на вещи по её роду и куда она возвращается */
+    function insBackLines(o){if(typeof o.back==="string"&&o.back.trim())return o.back.trim().split(/\n+/).slice(0,7);
+      const nm=String(o.name||"").toLowerCase();let h=0;for(const ch of String(o.id||o.name))h=(h*31+ch.charCodeAt(0))>>>0;
+      const L=["инв. "+String(o.h||"").toUpperCase()+"-"+(o.n||0)+"/"+(h%900+100)];
+      if(/печень|oreo|бутыл|банк|упаков|пакет|короб|чек|билет|этикет|таблет|лекарств|доставк/.test(nm))L.push("цена: "+(h%380+39)+",90","штрихкод наполовину стёрт");
+      else if(/круж|чашк|стакан|тарел|блюд|бокал|ваз/.test(nm))L.push("скол на ободке","донышко в мелких царапинах");
+      else if(/тетрад|письм|записк|книг|блокнот|фото|снимок|открытк|распечат|лист|конверт|афиш|каталог/.test(nm))L.push("на обороте карандашом — дата, без года","угол загнут");
+      else if(/одеял|рубашк|халат|шарф|куртк|бель|носок|кофт|плать|футболк|плед/.test(nm))L.push("ярлык срезан","нитка у шва другого цвета");
+      else if(/телефон|ноутбук|наушник|заряд|станц|экран|кабел|датчик|клавиат|камер/.test(nm))L.push("царапина у разъёма","наклейка снята, след остался");
+      else if(/ключ|замок|часы|очки|ручк|ножниц|отвёрт|отверт|ложк|вилк|нож/.test(nm))L.push("потёрто там, где держат");
+      else if(/ракушк|камен|ветк|лист[ьо]|шишк/.test(nm))L.push("песок в завитке","подписи не было");
+      else L.push("потёртость по нижнему краю");
+      if(o.ret)L.push("возвращается: "+String(o.ret).replace(/\s+/g," ").slice(0,150));
+      return L}
+    function insCanvas(lines,head,bg){const c=document.createElement("canvas");c.width=736;c.height=552;const g=c.getContext("2d");g.fillStyle=bg||"#EDE6D6";g.fillRect(0,0,736,552);
+      g.strokeStyle="rgba(40,36,30,.22)";g.lineWidth=2;g.strokeRect(18,18,700,516);let y=74;
+      if(head){g.fillStyle="#7A7062";g.font="500 22px ui-monospace,Menlo,monospace";g.fillText(head,44,y);y+=46}
+      g.fillStyle="#26221C";lines.forEach((ln,i)=>{g.font=(i===0&&!head?"600 30px":"400 28px")+" Georgia,serif";let cur="";String(ln).split(" ").forEach(w=>{const t=cur?cur+" "+w:w;if(g.measureText(t).width>640&&cur){if(y<510)g.fillText(cur,44,y);y+=38;cur=w}else cur=t});if(cur&&y<510)g.fillText(cur,44,y);y+=50});
+      return c}
+    function insOpen(src){const o=OBJM[src.userData.id];if(!o||WORLD)return false;
+      if(!INS.S){INS.S=new T.Scene();INS.cam=new T.PerspectiveCamera(32,cam.aspect,.05,12);INS.S.add(new T.HemisphereLight(0xFFFFFF,0x5A544C,1.05));const dl=new T.DirectionalLight(0xFFFFFF,.75);dl.position.set(.6,1,.9);INS.S.add(dl);
+        const dim=new T.Mesh(new T.PlaneGeometry(9,9),new T.MeshBasicMaterial({color:0x07080A,transparent:true,opacity:.64,depthWrite:false}));dim.position.z=-3;INS.S.add(dim)}
+      insDrop();const hold=new T.Group();hold.position.set(0,0,-1.08);
+      const edge=new T.MeshLambertMaterial({color:0xD9D1C0}),backT=new T.CanvasTexture(insCanvas(insBackLines(o),"оборот"));
+      const pu=opt.photo&&opt.photo(o.id);let front,bw=.46,bh=.345,bz=0;
+      if(pu){const tx=new T.TextureLoader().load(pu);if(T.sRGBEncoding)tx.encoding=T.sRGBEncoding;front=new T.MeshBasicMaterial({map:tx})}
+      else{front=new T.MeshBasicMaterial({map:new T.CanvasTexture(insCanvas([o.name],"",null))});
+        const th=thing(o),bb=new T.Box3().setFromObject(th),sz=bb.getSize(new T.Vector3()),ct=bb.getCenter(new T.Vector3()),sc=.2/Math.max(sz.x,sz.y,sz.z,.05);
+        th.scale.setScalar(sc);th.position.set(-ct.x*sc,-ct.y*sc,-ct.z*sc+.02);hold.add(th);bw=.34;bh=.255;bz=-(sz.z*sc/2+.07)}
+      const bd=new T.Mesh(new T.BoxGeometry(bw,bh,.008),[edge,edge,edge,edge,front,new T.MeshBasicMaterial({map:backT})]);bd.position.z=bz;hold.add(bd);
+      INS.S.add(hold);INS.hold=hold;INS.on=true;INS.id=o.id;INS.yaw=pu?0:.5;INS.pitch=pu?0:.12;INS.t0=performance.now();wrap.classList.add("mz-insp");
+      const touch=coarse.matches;nearEl.hidden=false;nearEl.textContent="В руках: "+(o.name.length>40?o.name.slice(0,38)+"…":o.name)+(touch?" · ведите пальцем — повернуть · «смотреть» — запись · касание — вернуть":" · тяните мышью или ←/→ — повернуть · E — запись · Esc — вернуть");
+      return true}
+    function insDrop(){if(!INS.hold)return;INS.S.remove(INS.hold);INS.hold.traverse(x=>{if(x.geometry)x.geometry.dispose();const mm=x.material;(Array.isArray(mm)?mm:mm?[mm]:[]).forEach(q=>{if(q.map)q.map.dispose();q.dispose()})});INS.hold=null}
+    function insClose(){if(!INS.on)return;INS.on=false;INS.id=null;insDrop();wrap.classList.remove("mz-insp");nearEl.hidden=true;nearObj=null;frame._t=null}
+    function insCard(){const id=INS.id;insClose();if(id&&opt.onObj)opt.onObj(id)}
+    function insTurn(dx,dy){INS.yaw+=dx*.009;INS.pitch=Math.max(-.75,Math.min(.75,INS.pitch+dy*.007))}
+    function insStep(){if(joy&&Math.abs(joy.dx)+Math.abs(joy.dy)>.25){insClose();return}const k=Math.min(1,(performance.now()-INS.t0)/220),e=1-Math.pow(1-k,3);INS.hold.rotation.set(INS.pitch,INS.yaw,0);INS.hold.scale.setScalar(.72+.28*e);
+      if(INS.cam.aspect!==cam.aspect){INS.cam.aspect=cam.aspect;INS.cam.updateProjectionMatrix()}INS.cam.fov=cam.aspect<.8?46:32;INS.cam.updateProjectionMatrix()}
+    stopFns.push(()=>{insDrop();INS.on=false});
+    function activate(o){if(locked())document.exitPointerLock();pause();if(o.userData.lift){liftOpen();return}if(o.userData.sobj){wOpenObj(o);return}if(o.userData.photo){openPhoto(o.userData.photo);return}if(o.userData.go){snd.cue("chat");const nav=(window.__APP&&window.__APP.go)||window.__goMsgs;if(nav)nav(o.userData.go);return}if(o.userData.id){if(INS.on&&INS.id===o.userData.id){insCard();return}if(markFound(o.userData.id))snd.cue("found");if(insOpen(o))return;if(opt.onObj)opt.onObj(o.userData.id)}}
     /* кнопки залов */
     /* «База Героев» в полосе залов — сразу после «Квартир», как ответвление */
     /* этап 9: ветка у «Квартир» — «↳ Коридор» и квартиры — тоже ответвления после «Базы» */
@@ -1901,7 +1967,7 @@ cg.traverse(m=>m.userData.id="cards");cg.userData.label=cards.name;cg.userData.n
         if(!a){a=AV[p.id]=avatar(p);a.position.set(p.x,0,p.z);a.rotation.y=p.yaw||0}
         const pn=VO&&VO.on&&VO.speaking(p.id)?p.name+" · говорит":p.name;
         if(a.userData.name!==pn){a.userData.name=pn;a.userData.lab.material.map.dispose();a.userData.lab.material.map=nameTex(pn);a.userData.lab.material.needsUpdate=true}
-        const k=Math.min(1,dt*8),ox=a.position.x,oz=a.position.z;a.position.x+=(p.x-a.position.x)*k;a.position.z+=(p.z-a.position.z)*k;a.rotation.y+=angDiff(a.rotation.y,p.yaw||0)*k;
+        const k=Math.min(1,dt*8),ox=a.position.x,oz=a.position.z;a.position.x+=(p.x-a.position.x)*k;a.position.z+=(p.z-a.position.z)*k;a.position.y+=((gOk(p.g)==="sit"&&p.sy>0?Math.min(1.05,p.sy):0)-a.position.y)*k;a.rotation.y+=angDiff(a.rotation.y,p.yaw||0)*k;
         const sp=dt>0?Math.hypot(a.position.x-ox,a.position.z-oz)/dt:0;a.userData.spd+=(Math.min(6,sp)-a.userData.spd)*Math.min(1,dt*6);animFig(a,dt,a.userData.spd,false,t);poseFig(a,dt,gOk(p.g),t);a.userData.g=gOk(p.g);
         /* реплика: старый live.js не передаёт sayAt — тогда отсчёт идёт с момента, когда фраза впервые пришла */
         if(p.say!==a.userData.sayT||(p.sayAt&&p.sayAt!==a.userData.sayAt)){a.userData.sayT=p.say||"";a.userData.sayAt=+p.sayAt||Date.now()}});
@@ -3119,7 +3185,8 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
         const want=hit?Math.max(.3,hit.distance-.3):C.cur;if(want<C.d)C.d=want;else C.d+=(want-C.d)*(1-Math.exp(-dt*5));
         cam.position.copy(piv).addScaledVector(back,C.d);cam.position.y=Math.max(.25,Math.min(HALLZ[hi].H-.15,cam.position.y))}
       cam.rotation.set(C.pitch,C.yaw,0);
-      me.position.set(P.x,P.y,P.z);me.rotation.y=P.yaw;me.visible=!fp&&C.d>.75;animFig(me,dt,sp,!V.ground,t);P.g=gestNow();poseFig(me,dt,P.g,t);
+      if(SEAT){if(GS.sit){P.x=SEAT.x;P.z=SEAT.z;P.y=SEAT.y;P.sy=SEAT.y;P.yaw=SEAT.yaw;V.x=V.z=V.vy=0;V.ground=true}else{P.x=SEAT.fx;P.z=SEAT.fz;P.y=SEAT.fy;P.sy=0;V.x=V.z=V.vy=0;V.ground=true;SEAT=null}}
+        me.position.set(P.x,P.y,P.z);me.rotation.y=P.yaw;me.visible=!fp&&C.d>.75;animFig(me,dt,sp,!V.ground,t);P.g=gestNow();poseFig(me,dt,P.g,t);
       /* шаги по фазе походки: каждый полупериод — шаг (бег — чаще и громче) */
       {const ss_=Math.sin(me.userData.fig.ph)>=0;if(V.ground&&sp>.6){if(ss_!==frame._ss)snd.step(sp>WALK+.6,V.gy>.05?"furn":HALLZ[hi].floor)}frame._ss=ss_}
       {const gy=groundAt(P.x,P.z,P.y,0);me.userData.fig.blob.position.y=gy+.013-P.y;me.userData.fig.blob.scale.setScalar(Math.max(.5,1-(P.y-gy)*.6))}
@@ -3140,11 +3207,11 @@ G.box5.setIndex(Array.from(G.box.index.array).filter((_,i)=>i<18||i>=24));
       /* ближайший предмет: рядом с фигурой и в стороне взгляда камеры */
       const fx=-sy,fz=-cy;let best=null,bd=2.6;clickable.forEach(o=>{o.getWorldPosition(tmpV);const dx=tmpV.x-P.x,dz=tmpV.z-P.z,d=Math.hypot(dx,dz);if(d<bd&&(d<.9||(dx*fx+dz*fz)/d>.5)){bd=d;best=o}});
       const touch=coarse.matches;
-      if(best!==nearObj||touch!==frame._t){nearObj=best;frame._t=touch;if(bAct)bAct.dataset.on=best?"1":"0";const dbl=!!(best&&best.userData.dbl);setAct(dbl?"talk":"look",dbl?best.userData.label:"");
-        if(best){nearEl.hidden=false;nearEl.textContent=dbl?best.userData.label+" · двойник — "+(touch?"кнопка «говорить»":"E, чтобы поговорить"):(best.userData.label||"Предмет")+(best.userData.n?" · запись "+best.userData.n:"")+(touch?" — кнопка «смотреть»":" — E или клик")}else nearEl.hidden=true}
+      if(!INS.on&&(best!==nearObj||touch!==frame._t)){nearObj=best;frame._t=touch;if(bAct)bAct.dataset.on=best?"1":"0";const dbl=!!(best&&best.userData.dbl);setAct(dbl?"talk":"look",dbl?best.userData.label:"");
+        if(best){nearEl.hidden=false;nearEl.textContent=dbl?best.userData.label+" · двойник — "+(touch?"кнопка «говорить»":"E, чтобы поговорить"):(best.userData.label||"Предмет")+(best.userData.n?" · запись "+best.userData.n:"")+(touch?" — кнопка «смотреть»":best.userData.id&&!WORLD&&OBJM[best.userData.id]?" — E: взять в руки":" — E или клик")}else nearEl.hidden=true}
       if(opt.multi){peersStep(dt,hi,t);stepBubbles(fp);voiceStep(now,hi)}
       stepHL(t);if(now-(frame._lh||0)>350){frame._lh=now;layHud()}if(mapOpen&&(mapDirty||now-mapT0>(lite?250:66))){mapT0=now;drawMap()}stepFps(now);
-      R.render(S,cam);calls=R.info.render.calls;raf=requestAnimationFrame(frame);
+      stepLOD();if(INS.on)insStep();R.render(S,cam);calls=R.info.render.calls;if(INS.on&&INS.hold){const ac=R.autoClear;R.autoClear=false;R.clearDepth();R.render(INS.S,INS.cam);R.autoClear=ac}raf=requestAnimationFrame(frame);
     }
 
     /* этап 9: раскладка HUD без наложений: «сейчас играет» поднимается над рядом кнопок, если они встретились (узкий вид ~800 px);

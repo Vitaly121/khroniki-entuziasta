@@ -440,7 +440,7 @@ async function cardHook(ov,o){const m=await me();if(!m.owner||!ov.isConnected)re
 
 /* ---------- этап 8, часть 2: 3D — этаж посетителей (коридор с дверями), комнаты, лифт, карточка предмета ---------- */
 function nav3d(floor,id){floor=String(floor);const h=id?"space-"+id:"floor-"+(floor==="-1"?"m1":floor)+"/3d";try{if(location.hash!=="#"+h)history.pushState(null,"","#"+h)}catch(e){}return world3d(floor,id||null)}
-function liftGo(t){t=String(t||"");if(t==="book"){A().go("museum");return}if(FL_ORDER.indexOf(t)>=0)nav3d(t)}
+function liftGo(t){t=String(t||"");if(t==="book"){A().go("museum");return}if(t==="inf"){A().go("floor:inf");return}if(FL_ORDER.indexOf(t)>=0)nav3d(t)}
 async function enterSpace(id){const v=page("museum",`<div id="spBody"><p class="sphint">Загружаем…</p></div>`);let s;
   try{s=await B().get(id)}catch(e){const b=v.querySelector("#spBody");if(b&&b.isConnected){b.innerHTML=`<div class="page-head"><div class="eyebrow">Пространства посетителей</div><h2>Не найдено</h2></div><p class="spmsg err" role="alert">${esc(e.code==="not_found"?"Пространство не найдено, ещё на проверке или скрыто. Войти в него могут только автор и автор сайта.":msg(e))}</p><div class="sptools"><button type="button" class="spb gh" id="spHome">На главную</button></div>`;b.querySelector("#spHome").onclick=()=>A().go("home")}return}
   if(!v.isConnected||!(location.hash==="#space-"+id))return;

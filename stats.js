@@ -53,10 +53,10 @@ function css(){if(document.getElementById("statsCss"))return;const s=document.cr
 const dark=()=>document.documentElement.dataset.theme==="dark"||(document.documentElement.dataset.theme!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);
 const col=i=>(dark()?PAL_D:PAL)[i];
 let tipEl=null;function tip(ev,html){if(!tipEl){tipEl=document.createElement("div");tipEl.className="st-tip";document.body.appendChild(tipEl)}if(!html){tipEl.hidden=true;return}tipEl.hidden=false;tipEl.innerHTML=html;const x=Math.min(ev.clientX+14,innerWidth-270),y=Math.max(6,ev.clientY-12);tipEl.style.left=x+"px";tipEl.style.top=y+"px"}
-function show(){const app=A(),S=window.BOOKDATA.stats,esc=app.esc;app.clearView();app.setNav("tally");css();
+function show(){const app=A(),S=window.BOOKDATA.stats,esc=app.esc;app.clearView();app.setNav("tally");css();if(window.SiteDate&&SiteDate.blk!=null)blk=SiteDate.blk;const sd=b=>{if(window.SiteDate)SiteDate.set(b,{from:"stats"})};
   if(!S){app.view.innerHTML=`<p class="hint">Нет данных.</p>`;return}
   const nb=S.blocks.length;
-  app.view.innerHTML=`<div class="page-head"><div class="eyebrow">Счёт · числа книги</div><h2>Год Viktor в цифрах</h2><div class="sub">Всё посчитано по записям редакции 7: кто пишет, сколько слов, когда стихает музыка, сколько двойников рядом. Ползунок ведёт по году — все графики показывают выбранный месяц.</div></div>
+  app.view.innerHTML=`<div class="page-head"><div class="eyebrow">Счёт · числа книги</div><h2>Год Viktor в цифрах</h2><div class="sub">Всё посчитано по записям редакции 7: кто пишет, сколько слов, когда стихает музыка, сколько двойников рядом. Ползунок ведёт по году — все графики показывают выбранный месяц. Тот же месяц становится датой всего сайта: переписки, музея, клуба.</div></div>
    <div class="st-hero">${S.hero.map(([t,v])=>`<div class="st-tile"><b data-cnt="${v}">0</b><span>${esc(t)}</span></div>`).join("")}</div>
    <div class="st-scrub"><button type="button" class="chip" id="stPlay" aria-label="Прокрутить год">▶ год</button><input type="range" id="stR" min="0" max="${nb-1}" value="${blk}" aria-label="Месяц книги"><span class="lbl" id="stL"></span></div>
    <div class="st-now" id="stNow"></div>
@@ -127,11 +127,11 @@ function show(){const app=A(),S=window.BOOKDATA.stats,esc=app.esc;app.clearView(
     document.querySelectorAll("[data-dot]").forEach(c=>c.setAttribute("r",+c.dataset.dot===b?7:4));
     const tot=V.series.reduce((a,s)=>a+V.data[s][b],0);
     document.getElementById("stNow").innerHTML=`<div><b>${tot}</b>записей в месяце</div><div><b>${S.avgw[b]??"—"}</b>слов в записи Viktor</div><div><b>${S.music[b]==null?"—":S.music[b]+"%"}</b>записей с музыкой</div><div><b>${S.doubles.cum[b]}</b>двойников рядом</div><div><b>${S.numrate[b]??"—"}</b>чисел на 1000 слов</div>`}
-  R.oninput=()=>setB(+R.value);setB(blk);
+  R.oninput=()=>{setB(+R.value);sd(+R.value)};setB(blk);
   const pl=document.getElementById("stPlay");pl.onclick=()=>{if(playing){clearInterval(playing);playing=null;pl.textContent="▶ год";return}let b=0;setB(0);pl.textContent="❚❚ стоп";
-    playing=setInterval(()=>{b++;if(b>=nb){clearInterval(playing);playing=null;pl.textContent="▶ год";return}setB(b)},650)};
+    playing=setInterval(()=>{b++;if(b>=nb){clearInterval(playing);playing=null;pl.textContent="▶ год";return}setB(b);sd(b)},650)};
   app.cleanup().push(()=>{if(playing){clearInterval(playing);playing=null}tip(null,"")});
   function wireTT(id){document.getElementById(id).querySelectorAll("[data-tt]").forEach(el=>{el.addEventListener("pointermove",ev=>tip(ev,el.dataset.tt));el.addEventListener("pointerleave",ev=>tip(ev,""))})}
 }
-return {show};
+return {show,DISS};
 })();

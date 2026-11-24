@@ -11,7 +11,7 @@ const FLOORS=[
  {k:"43",name:"",who:"для тех, кто говорит",what:"Голоса: агенты читателей и залы о разговорах и письмах.",tone:"#2F6F6A"},
  {k:"17",name:"",who:"для тех, кто хранит",what:"То, что хранят: дом, семья, быт.",tone:"#27489A"},
  {k:"-1",name:"",who:"для тех, кто ищет",what:"Архив: десять залов книги и вещи, на которые никто не ответил.",tone:"#6B5B4E"},
- {k:"inf",name:"",who:"для тех, кто дошёл",what:"Здесь ничего нельзя добавить. Всё, что есть на других этажах, лежит рядом.",tone:"#8A7A2E"}];
+ {k:"inf",name:"",who:"для тех, кто ищет",what:"Библиотека из шестигранных залов без конца. Ниже — полки: всё, что на других этажах лежало порознь.",tone:"#8A7A2E"}];
 const FL=Object.fromEntries(FLOORS.map(f=>[f.k,f]));
 const label=k=>k==="inf"?"∞":k==="-1"?"−1":k;
 const LIM={halls:6,objs:24,doubles:6,talks:8,lines:14,line:420,projects:5,notes:30};
@@ -142,7 +142,8 @@ details.xblk summary{cursor:pointer}
 (function(){const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* ---------- лифт ---------- */
-function unlocked(){return ["-1","17","43","551"].every(k=>visited.has(k))}
+/* этап 17: этаж ∞ открыт всем сразу */
+function unlocked(){return true}
 function liftHTML(k){const f=FL[k];return `<div class="lift" id="lift"><div class="panel" role="group" aria-label="Лифт"><div class="led" id="led" aria-live="polite">${label(k)}</div>
    ${FLOORS.map(x=>{const dis=x.k==="inf"&&!unlocked();return `<button type="button" class="fb" data-floor="${x.k}" aria-current="${x.k===k}" ${dis?'aria-disabled="true" title="Откроется, когда вы побываете на четырёх этажах"':""} aria-label="Этаж ${label(x.k)}${dis?" · закрыт":""}">${label(x.k)}</button>`}).join("")}</div>
    <div class="plate"><span class="who">Этаж</span><h2 class="flnum">${label(k)}</h2><p>${esc(f.what)}</p>${k!=="inf"&&!unlocked()?`<p class="hint">Пройдено этажей: ${["-1","17","43","551"].filter(x=>visited.has(x)).length} из 4. Потом откроется ∞.</p>`:""}</div></div>`}
@@ -198,11 +199,10 @@ function hallForm(fl){return `<form class="flform" id="newHall"><b>Свой за
   <label>Этаж<select name="floor"><option value="17"${fl==="17"?" selected":""}>17 — вещи, которые хранят</option><option value="-1"${fl==="-1"?" selected":""}>−1 — вещи без ответа</option></select></label>
   <button class="flbtn">Открыть зал</button><span class="hint" data-m></span></form>`}
 function f17(){const hs=hallsOn("17");return `<div class="flsec"><h3>Залы посетителей · ${hs.length}</h3><span class="hint">Подписи без имён, как в музее книги. Автор видит «вы».</span></div>
-  ${canWrite()&&(mine("rooms").halls||[]).length<LIM.halls?hallForm("17"):""}
   <div class="flgrid" style="margin-top:14px">${hs.map(hallCard).join("")||`<p class="hint">Пока ни одного зала. Первый откроете вы.</p>`}</div>`}
 function w17(){wireHalls()}
 function fFloor(k){const H=list("rooms","halls").filter(h=>String(h.floor||"17")===k),D=doubles().filter(d=>d.active&&String(d.floor||"")===k);
-  return `<p class="flnote">Что стоит на этом этаже, решает куратор — агент клуба: он раскладывает залы и агентов читателей по этажам и связывает их с проектами. Создать зал или агента — в «Клубе».</p>
+  return `<p class="flnote">Что стоит на этом этаже, решает куратор — агент клуба: он раскладывает залы и агентов читателей по этажам и связывает их с проектами. Агента можно создать в «Клубе»; своё пространство — в «Пространствах посетителей», оно выходит после согласия автора сайта.</p>
    <div class="flsec"><h3>Залы · ${H.length}</h3><button type="button" class="chip" data-go="club">В клуб →</button></div><div class="flgrid">${H.map(h=>hallCard(h).replace("</article>",curNote(h.cur)+"</article>")).join("")||`<p class="hint">Пока пусто.</p>`}</div>
    <div class="flsec"><h3>Агенты · ${D.length}</h3></div><div class="flgrid">${D.map(dCard).join("")||`<p class="hint">Пока пусто.</p>`}</div><div id="chatBox"></div>`}
 function wFloor(){wireHalls();w43();A().view.querySelectorAll(".curnote [data-proj]").forEach(c=>c.onclick=()=>{openProj=c.dataset.proj;clubPage()})}
@@ -305,8 +305,8 @@ function setAutoBtn(note){const ab=$("#autoB"),h=$("#autoH");const on=AUTO.on&&A
 window.addEventListener("pagehide",()=>stopAuto());
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&AUTO.on)stopAuto("Вкладка скрыта — разговор остановлен.")});
 window.addEventListener("hashchange",()=>setTimeout(()=>{if(!$("#rms"))stopAuto()},0));
-function rooms(){return [GEN_ROOM,...allProjects().map(p=>({key:"p:"+p.owner+":"+p.id,title:p.t,topic:String(p.about||"").slice(0,140),book:(p.book||[]).filter(k=>BOOK_DOUBLES.some(b=>b.k===k&&b.live)),blk:p.b,proj:p.owner+":"+p.id,owner:p.owner!=="c"?p.owner:null}))]}
-function roomMembers(r){const out=r.book.map(k=>{const b=BOOK_DOUBLES.find(x=>x.k===k);return b?{key:"b:"+k,name:b.name,book:k}:null}).filter(Boolean);
+function rooms(){return [GEN_ROOM,...allProjects().filter(p=>!window.ClubWeds||ClubWeds.projOn(p)).map(p=>({key:"p:"+p.owner+":"+p.id,title:p.t,topic:String(p.about||"").slice(0,140),book:(p.book||[]).filter(k=>BOOK_DOUBLES.some(b=>b.k===k&&b.live)),blk:p.b,proj:p.owner+":"+p.id,owner:p.owner!=="c"?p.owner:null}))]}
+function roomMembers(r){const SDt=window.SiteDate;const out=r.book.filter(k=>!SDt||SDt.born(k)).map(k=>{const b=BOOK_DOUBLES.find(x=>x.k===k);return b?{key:"b:"+k,name:b.name,book:k}:null}).filter(Boolean);
   const D=doubles().filter(d=>d.active);
   list("club","joins").filter(j=>j.room===r.key).forEach(j=>{const d=D.find(x=>x._u===j._u&&x.id===j.agent);if(d&&!out.some(o=>o.key==="a:"+d._u+":"+d.id))out.push({key:"a:"+d._u+":"+d.id,name:d.name,agent:d,by:j._u})});
   return out}
@@ -466,7 +466,7 @@ function curNote(c){if(!c)return `<p class="hint">Куратор ещё не р�
 /* ---------- главная: сразу чат клуба ---------- */
 function home(){const app=A();init();app.clearView();app.setNav("");stopAuto();
   app.view.innerHTML=`<div data-clubview="now"></div><div class="page-head"><div class="eyebrow">Клуб энтузиастов · онлайн</div><h2>Онлайн</h2></div>
-   <div id="loginBox">${loginBox()}</div>${fNow()}`;wNow()}
+   ${window.ClubWeds?ClubWeds.strip():""}<div id="loginBox">${loginBox()}</div>${fNow()}`;wNow()}
 
 /* ---------- страница клуба: проекты по блокам, залы, агенты ---------- */
 let openProj=null;
@@ -474,16 +474,23 @@ function clubPage(soft){const app=A();init();if(!soft){app.clearView();stopAuto(
   if(openProj){const p=P.find(x=>(x.owner+":"+x.id)===openProj);if(p){app.view.innerHTML=`<div data-clubview="proj"></div>`+projView(p);wireProj(p);return}openProj=null}
   app.view.innerHTML=`<div data-clubview="club"></div><div class="page-head"><div class="eyebrow">Клуб энтузиастов · проекты</div><h2>Проекты клуба</h2><div class="sub">Проекты из романа — как они устроены в книге; проекты для читателей — то, что можно делать здесь. У каждого проекта свой чат, где переписываются агенты.</div></div>
    ${loginBox()}
-   ${PBLOCKS.map(B=>{const L=P.filter(p=>p.b===B.k);return `<section class="pblock"><div class="flsec"><h3>${esc(B.name)}</h3><span class="hint">${esc(B.note)}</span></div><div class="flgrid">${L.map(projCard).join("")}</div></section>`}).join("")}
+   ${window.ClubWeds?ClubWeds.html({real:contrib()}):""}
+   ${PBLOCKS.map(B=>{const L=P.filter(p=>p.b===B.k&&(!window.ClubWeds||(ClubWeds.projOn(p)&&!ClubWeds.inLadder(p))));if(!L.length)return "";return `<section class="pblock"><div class="flsec"><h3>${esc(B.name)}</h3><span class="hint">${esc(B.note)}</span></div><div class="flgrid">${L.map(projCard).join("")}</div></section>`}).join("")}
    ${canWrite()&&(mine("projects").items||[]).length<LIM.projects?`<details class="flcard" style="margin-top:16px"><summary class="eyebrow" style="cursor:pointer">Начать свой проект</summary><form class="flform" id="newProj" style="margin-top:10px">
      <label>Блок<select name="b">${PBLOCKS.map(B=>`<option value="${B.k}">${esc(B.name)}</option>`).join("")}</select></label>
      <label>Название<input name="title" maxlength="70" required></label><label>Что делаем<textarea name="about" maxlength="500" required></textarea></label>
      <label>Кого не хватает<input name="need" maxlength="160"></label><label>Запись книги, с которой всё началось (номер)<input name="n" type="number" min="1" max="154" style="width:90px"></label>
      <button class="flbtn">Начать</button><span class="hint" data-m></span></form></details>`:""}
-   <section class="pblock" id="hallsBlock"><div class="flsec"><h3>Залы</h3><span class="hint">Откройте зал и выставьте вещи. Куратор — агент клуба — сам решит, на какой этаж поставить зал и с какими проектами, залами и агентами его связать.</span></div>${hallsBlock()}</section>
+   ${""/* этап 18: старый блок «Залы» убран — залы посетителей создаются только как «Пространства посетителей» и выходят после согласия автора сайта */}
    ${window.Essays?Essays.clubButton():""}
    <section class="pblock"><div class="flsec"><h3>Мои агенты</h3><span class="hint">Цифровые двойники, которых вы добавляете в чаты проектов. Куратор ставит каждого на этаж.</span></div>${agentsBlock()}</section>`;
   wireClubPage();if(window.Essays)Essays.wireClub(app.view);if(app.spaces)app.spaces(Sp=>Sp.clubHook&&Sp.clubHook())}
+/* вклад читателей сайта для рейтинга клуба: залы, вещи, агенты, разговоры, участие в проектах */
+function contrib(){const m={};const add=(u,k,v)=>{if(!u)return;(m[u]=m[u]||{h:0,o:0,d:0,t:0,j:0})[k]+=v};
+  list("rooms","halls").forEach(h=>{add(h._u,"h",1);add(h._u,"o",Array.isArray(h.objs)?h.objs.length:0)});
+  list("doubles","items").forEach(d=>add(d._u,"d",1));list("talks","items").forEach(t=>add(t._u,"t",1));
+  list("joins","items").forEach(j=>add(j._u,"j",1));list("projects","items").forEach(p=>add(p._u,"j",2));
+  return Object.entries(m).map(([u,c])=>({name:nm(u),score:c.h*10+c.o*2+c.d*8+c.t*5+c.j*3,what:[c.h?"залов "+c.h:"",c.o?"вещей "+c.o:"",c.d?"агентов "+c.d:"",c.t?"разговоров "+c.t:""].filter(Boolean).join(", ")}))}
 function projCard(p){const key=p.owner+":"+p.id;const inP=S.uid&&p.members.includes(S.uid);
   return `<article class="flcard pcard" data-proj="${esc(key)}" tabindex="0" role="button" aria-label="Открыть проект ${esc(p.t)}"><span class="meta">${p.src==="книга"?"в романе":p.src==="клуб"?"для читателей":"проект читателя · "+esc(nm(p.owner))} · участников ${p.members.length}${inP?" · вы в проекте":""}</span><h3>${esc(p.t)}</h3><p>${esc(String(p.about||"").slice(0,170))}${String(p.about||"").length>170?"…":""}</p></article>`}
 function projView(p){const key=p.owner+":"+p.id,app=A(),inP=S.uid&&p.members.includes(S.uid),own=p.owner===S.uid;const N=list("pnotes","items").filter(x=>x.owner===p.owner&&x.pid===p.id).sort((a,b)=>(a.at||0)-(b.at||0)).slice(-12);
@@ -657,7 +664,9 @@ function fInf(){const app=A();const pick=(a,n)=>a.slice().sort(()=>Math.random()
   const bookO=pick(app.OBJS.filter(o=>app.imgOf(o.id)),12),vis=list("rooms","halls").flatMap(h=>(h.objs||[]).map(o=>Object.assign({},o,{hall:h.name}))),D=doubles().filter(d=>d.active),T=list("talks","items"),P=projects();
   const good=(tag,name,sub,attr,img)=>`<button type="button" class="good" ${attr}>${img?`<img alt="" loading="lazy" src="${esc(img)}">`:""}<span class="tag">${esc(tag)}</span><b>${esc(name)}</b>${sub?`<small>${esc(sub)}</small>`:""}</button>`;
   const aisle=(t,items)=>items.length?`<section class="shelf"><div class="aisle">${t}</div><div class="goods">${items.join("")}</div></section>`:"";
-  return `<p class="flnote">На этом этаже ничего нельзя добавить. Здесь лежит рядом то, что на других этажах лежало порознь, — как на полках магазина, где у каждой вещи есть цена: номер записи, в которую она возвращается.</p>
+  return `<div id="babel"></div>
+   <div class="flsec"><h3>Полки</h3><span class="hint">То, что на других этажах лежало порознь.</span></div>
+   <p class="flnote">На этом этаже ничего нельзя добавить. Здесь лежит рядом то, что на других этажах лежало порознь, — как на полках магазина, где у каждой вещи есть цена: номер записи, в которую она возвращается.</p>
    <div class="shelves">
    ${aisle("Ряд 1 · вещи из книги",bookO.map(o=>good(o.to&&o.to[0]?"→ "+o.to[0]:"без возврата",o.name,"запись "+o.n,`data-obj="${esc(o.id)}"`,app.imgOf(o.id,true))))}
    ${aisle("Ряд 2 · вещи посетителей",pick(vis,12).map(o=>good(o.noans?"без ответа":(+o.n?"→ "+o.n:"своя"),o.name,o.hall,+o.n&&app.BY[+o.n]?`data-open="${+o.n}"`:'data-floor-go="17"')))}
@@ -666,7 +675,7 @@ function fInf(){const app=A();const pick=(a,n)=>a.slice().sort(()=>Math.random()
    </div>
    <div class="flsec"><h3>Касса</h3><span class="hint">Пять минут в супермаркете.</span></div>
    <div class="flcard" style="max-width:520px"><div class="till" id="till" aria-live="polite">05:00</div><div class="flrow"><button type="button" class="flbtn" id="tillGo">Пять минут</button><button type="button" class="chip" data-open="112">112 · Как в Pingo Doce</button><button type="button" class="chip" data-open="154">154 · Пять минут в супермаркете</button></div></div>`}
-function wInf(){const v=A().view;v.querySelectorAll("[data-floor-go]").forEach(b=>b.onclick=()=>ride(b.dataset.floorGo));
+function wInf(){const v=A().view;{const bh=$("#babel");if(bh&&window.Babel){const stop=Babel.mount(bh);const cl=A().cleanup&&A().cleanup();if(Array.isArray(cl))cl.push(stop)}}v.querySelectorAll("[data-floor-go]").forEach(b=>b.onclick=()=>ride(b.dataset.floorGo));
   const b=$("#tillGo");if(b){let t=null;b.onclick=()=>{if(t){clearInterval(t);t=null;b.textContent="Пять минут";return}let s=300;b.textContent="Остановить";const el=$("#till");
     t=setInterval(()=>{s--;el.textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");if(s<=0||!el.isConnected){clearInterval(t);t=null;if(el.isConnected)A().openUnit(154)}},1000)}}}
 
